@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/profile.css">
+</head>
+<body>
+    <%- include('partials/nav') %>
+    <div class="container">
+        <h1><%= user.username %>'s Profile</h1>
+        <div class="profile-header">
+            <!-- Display the user's profile picture -->
+            <img src="<%= user.profilePicture || '/images/default-profile.jpg' %>" alt="Profile Picture" class="profile-picture">
+            <h2><%= user.username %></h2>
+        </div>
+
+        <!-- Only show update forms if it's the logged-in user's profile -->
+        <% if (isCurrentUser) { %>
+            <!-- Update Profile Picture Form -->
+            <form action="/upload-profile-picture" method="POST" enctype="multipart/form-data">
+                <label for="profilePicture">Upload New Profile Picture:</label>
+                <input type="file" name="profilePicture" id="profilePicture" required>
+                <button type="submit">Upload</button>
+            </form>
+
+            <!-- Bio Update Form -->
+            <form action="/update-bio" method="POST">
+                <label for="bio">Update Bio:</label>
+                <textarea name="bio" id="bio" rows="4" cols="50" placeholder="Enter your bio..."><%= user.bio %></textarea>
+                <button type="submit">Update Bio</button>
+            </form>
+        <% } %>
+
+        <!-- Flash Messages -->
+        <% if (flash && flash.success) { %>
+            <div class="success-message"><%= flash.success %></div>
+        <% } %>
+        <% if (flash && flash.error) { %>
+            <div class="error-message"><%= flash.error %></div>
+        <% } %>
+
+        <!-- Profile Details Section -->
+        <div class="profile-details">
+            <p><strong>Points:</strong> <%= user.points %></p>
+            <p><strong>Friends:</strong>
+                <% if (user.friends && user.friends.length) { %>
+                    <% user.friends.forEach(friend => { %>
+                        <a href="/profile/<%= friend._id %>"><%= friend.username %></a><%= friend !== user.friends[user.friends.length - 1] ? ', ' : '' %>
+                    <% }) %>
+                <% } else { %>
+                    No friends yet
+                <% } %>
+            </p>
+            <p><strong>Bio:</strong> <%= user.bio || 'No bio provided.' %></p>
+        </div>
+
+        <!-- Add Friends Section (Only for logged-in user) -->
+        <% if (isCurrentUser) { %>
+            <h3>All Users</h3>
+            <ul>
+                <% users.forEach(user => { %>
+                    <li>
+                        <a href="/profile/<%= user._id %>"><%= user.username %></a>
+
+                        <!-- Add Friend Button -->
+                        <% if (!user.friends || !user.friends.includes(currentUserId)) { %>
+                            <form action="/add-friend" method="POST" style="display:inline;">
+                                <input type="hidden" name="friendId" value="<%= user._id %>">
+                                <button type="submit">Add Friend</button>
+                            </form>
+                        <% } else { %>
+                            <form action="/remove-friend" method="POST" style="display:inline;">
+                                <input type="hidden" name="friendId" value="<%= user._id %>">
+                                <button type="submit">Remove Friend</button>
+                            </form>
+                        <% } %>  
+                    </li>
+                <% }) %>  
+            </ul>
+        <% } %>
+    </div>
+</body>
+</html>
