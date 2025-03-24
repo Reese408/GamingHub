@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clicker Game</title>
+    <link href="/css/clicker.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="totalScore">Funds: <%= funds || 0 %></div>
+    <div id="openUpgrades">Open Upgrades</div>
+    <div id="meteorContainer"></div>
+    <div id="upgradesContainer">
+      <h1>Click Power</h1>
+      <div id="clickPower" class="upgrades"></div>
+      <div id="clickPowerCostContainer">Next Level Cost: $100</div>
+      Increase The Amount Earned Per Click
+      <hr />
+      <h1>Research Lab</h1>
+      <div id="researchLab" class="upgrades"></div>
+      <div id="labCostContainer">Next Level Cost: $1000</div>
+      Increase Passive Production
+      <hr />
+      <h1>Scientist</h1>
+      <div id="scientist" class="upgrades"></div>
+      <div id="scientistCostContainer">Next Level Cost: $10000</div>
+      Hire More Scientists to Increase Research Lab Rotations Per Second
+      <hr />
+      <h1>Star Ships</h1>
+      <div id="shipFleet" class="upgrades"></div>
+      <div id="shipFleetCostContainer">Next Level Cost: $50000</div>
+      Hire a Fleet of Ships to Help Mine More Asteroids
+      <hr />
+      <h1>Satellites</h1>
+      <div id="satellite" class="upgrades"></div>
+      <div id="satelliteCostContainer">Next Level Cost: $100000</div>
+      Establish Satellite Communication to Increase Efficiency of Star Ships
+      <hr />
+      <div id="buttons">
+        <div id="closeUpgrades"><b>Close Upgrades</b></div>
+      </div>
+    </div>
+
+    <script src="/javascript/clicker.js"></script>
+  </body>
+</html>

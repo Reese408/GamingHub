@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Function to handle upgrades
-  // Function to handle upgrades
   function handleUpgrade(upgradeElement, cost, level, multiplier, maxLevel = 30) {
     if (currentScore >= cost && level < maxLevel) {
       currentScore -= cost;

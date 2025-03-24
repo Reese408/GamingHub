@@ -77,6 +77,10 @@ app.get('/', (req, res) => {
     res.render('homepage', { title: 'Home', user: req.user });
 });
 
+app.get('/clicker', (req, res) => {
+  res.render('Clicker', { title: 'Clicker Game', funds: 0 });
+});
+
 // Chess game route
 app.get('/chess', (req, res) => {
     res.render('chess', { title: 'Chess', user: req.user });
