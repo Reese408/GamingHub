@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamers Hub</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/homepage.css">
+</head>
+<body>
+  <%- include('partials/nav') %>
+    <div class="bod">
+        <div class="container">
+            <div class="row">
+              <div class="col-md-8">
+                <h1>Welcome to Gamers Hub</h1>
+                <p>Your one-stop destination for all things gaming. Explore the latest games, shop for your favorite titles, and join our community of gamers.</p>
+                <a href="games.html" class="btn btn-primary">Explore Games</a>
+              </div>
+              <div class="col-md-4">
+                <img src="../images/gaming.jpg" class="img-fluid" alt="Gaming Image">
+              </div>
+            </div>
+            <div class="row mt-5">
+              <div class="col-md-12">
+                <h2>Featured Games</h2>
+                <div class="card-deck">
+                  <div class="card">
+                    <img src="../images/chess.jpg" class="card-img-top img-fluid" alt="Game 1" style="object-fit: cover;">
+                    <div class="card-body">
+                      <h5 class="card-title">Chess</h5>
+                      <p class="card-text">Chess is a two-player strategy game played on an 8x8 board. The goal is to checkmate the opponent's king, using various pieces with unique movement rules.</p>
+                      <a href="/chess" class="btn btn-primary">Learn More</a>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <img src="../images/tic-tac-toe.png" class="card-img-top img-fluid" alt="Game 2" style="object-fit: cover; height:320px;">
+                    <div class="card-body">
+                      <h5 class="card-title">Tic-Tac-Toe</h5>
+                      <p class="card-text">Tic Tac Toe is a two-player game on a 3x3 grid. Players take turns marking X's and O's, aiming to get three in a row horizontally, vertically, or diagonally. The game ends when one player wins or it’s a draw.</p>
+                      <a href="#" class="btn btn-primary">Learn More</a>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <img src="../images/snake.jpg" class="card-img-top img-fluid" alt="Game 3" style="object-fit: cover;">
+                    <div class="card-body">
+                      <h5 class="card-title">Snake</h5>
+                      <p class="card-text">Snake is a game where the player controls a snake that grows longer by eating food. The goal is to avoid crashing into walls or its own body. The game ends when a collision occurs.</p><br><br><br><br><br>
+                      <a href="#" class="btn btn-primary">Learn More</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+</html>
