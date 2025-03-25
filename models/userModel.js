@@ -6,9 +6,33 @@ const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     bio: { type: String, default: "" },               // New field for bio
-    profilePicture: { type: String, default: "" },     // URL to profile picture
+    profilePicture: { type: String, default: "/images/default.png" },     // URL to profile picture
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Array of friends
     points: { type: Number, default: 0 },              // Points for the user
+    items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'StoreItem' }],
+    isAdmin: { 
+        type: Boolean, 
+        default: false 
+    },
+    profileItems: [{
+        itemId: { 
+          type: mongoose.Schema.Types.ObjectId, 
+          ref: 'StoreItem' 
+        },
+        equipped: {
+          type: Boolean,
+          default: false
+        },
+        obtainedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      equippedItems: {
+        background: { type: String, default: '' },
+        badge: { type: String, default: '' },
+        frame: { type: String, default: '' }
+      }
 });
 
 // Hash password before saving the user

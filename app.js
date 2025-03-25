@@ -13,6 +13,8 @@ const { Server } = require('socket.io');
 const User = require('./models/userModel');
 const authRoutes = require('./routes/authRoutes');
 const storeRoutes = require('./routes/storeRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+
 // Initialize app and servers
 const app = express();
 const server = http.createServer(app);
@@ -21,13 +23,15 @@ const io = new Server(server);
 // Game state management
 const rooms = {};
 
-// MongoDB Connection
+// Configuration
+const PORT = process.env.PORT || 3000;
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://Reese:Giantsus-2005@cluster0.9g6dv.mongodb.net/node-prac?retryWrites=true&w=majority&tls=true';
-mongoose
-  .connect(dbURI)
+
+// MongoDB Connection
+mongoose.connect(dbURI)
   .then(() => {
     console.log('Connected to MongoDB');
-    server.listen(3000, () => console.log('Server running on port 3000'));
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {
     console.error('MongoDB Connection Error:', err);
@@ -57,25 +61,43 @@ app.use(
       maxAge: 60 * 60 * 1000, // 1 hour session duration
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
     },
   })
 );
 
 // Flash Messages Middleware
 app.use(flash());
-app.use((req, res, next) => {
-  res.locals.flash = req.flash();
-  next();
-});
 
 // Passport middleware
 app.use(passport.initialize());
 app.use(passport.session());
 require('./config/passport');
 
+// Make user and flash messages available to all views
+app.use((req, res, next) => {
+  res.locals.user = req.user;
+  res.locals.messages = req.flash();
+  next();
+});
+
 // View engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+// File Upload Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Socket.IO Game Logic
 io.on('connection', (socket) => {
@@ -182,7 +204,9 @@ io.on('connection', (socket) => {
 
     if (p1Choice === p2Choice) {
       winner = 'draw';
-    } else if ((p1Choice === 'Rock' && p2Choice === 'Scissor') || (p1Choice === 'Paper' && p2Choice === 'Rock') || (p1Choice === 'Scissor' && p2Choice === 'Paper')) {
+    } else if ((p1Choice === 'Rock' && p2Choice === 'Scissor') || 
+               (p1Choice === 'Paper' && p2Choice === 'Rock') || 
+               (p1Choice === 'Scissor' && p2Choice === 'Paper')) {
       winner = 'p1';
     } else {
       winner = 'p2';
@@ -199,263 +223,42 @@ function makeid(length = 6) {
   return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
 }
 
-// Profile Picture Upload Setup
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'public/uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
-  },
-});
-const upload = multer({ storage: storage });
-
-app.use(function (req, res, next) {
-  res.locals.user = req.user || null;
-  next();
-});
-
 // Routes
 app.use(authRoutes);
-app.use(storeRoutes);
+app.use('/store', storeRoutes);
+app.use(profileRoutes);
 
 // Main route
 app.get('/', (req, res) => {
-  res.render('homepage', { title: 'Home', user: req.user });
+  res.render('homepage', { title: 'Home' });
 });
 
 // About route
 app.get('/about', (req, res) => {
-  res.render('about', { title: 'About Us',
-  });
+  res.render('about', { title: 'About Us' });
 });
 
 // Game routes
 app.get('/rps', (req, res) => {
-  res.render('rps', { title: 'Rock Paper Scissors', user: req.user });
+  res.render('rps', { title: 'Rock Paper Scissors' });
 });
 
 app.get('/clicker', (req, res) => {
-  res.render('Clicker', { title: 'Clicker Game', funds: 0, user: req.user });
+  res.render('Clicker', { title: 'Clicker Game', funds: 0 });
 });
 
 app.get('/chess', (req, res) => {
-  res.render('chess', { title: 'Chess', user: req.user });
-});
-
-// Profile Page (Logged-in users)
-app.get('/profile', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/login');
-  }
-
-  User.findById(req.user._id)
-    .populate('friends', 'username')
-    .then((loggedInUser) => {
-      User.find({ _id: { $ne: req.user._id } })
-        .then((users) => {
-          res.render('profile', {
-            title: 'Profile',
-            user: loggedInUser,
-            users: users,
-            currentUserId: req.user._id.toString(),
-            isCurrentUser: true,
-          });
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).send('Error fetching users');
-        });
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Error fetching logged-in user');
-    });
-});
-
-app.get('/profile/:userId', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/login');
-  }
-
-  const userId = req.params.userId;
-
-  User.findById(userId)
-    .populate('friends', 'username')
-    .then((user) => {
-      if (!user) {
-        return res.status(404).send('User not found');
-      }
-
-      res.render('profile', {
-        title: `${user.username}'s Profile`,
-        user: user,
-        currentUserId: req.user._id.toString(),
-        isCurrentUser: req.user._id.toString() === userId,
-      });
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Error fetching user profile');
-    });
-});
-
-// Store Page
-app.get('/store', (req, res) => {
-  res.render('store', { title: 'Store', user: req.user });
-});
-
-// Authentication routes
-app.get('/logout', (req, res, next) => {
-  req.logout((err) => {
-    if (err) return next(err);
-    res.redirect('/login');
-  });
-});
-
-app.get('/signup', (req, res) => {
-  res.render('signup', {
-    title: 'Sign Up',
-    user: req.user,
-    messages: req.flash('error'),
-  });
-});
-
-app.post('/signup', async (req, res) => {
-  const { email, username, password } = req.body;
-
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      req.flash('error', 'Email is already in use');
-      return res.redirect('/signup');
-    }
-
-    const newUser = new User({ email, username, password });
-    await newUser.save();
-
-    req.login(newUser, (err) => {
-      if (err) {
-        req.flash('error', 'Signup failed');
-        return res.redirect('/signup');
-      }
-      req.flash('success', 'Welcome! You have successfully signed up.');
-      res.redirect('/');
-    });
-  } catch (err) {
-    req.flash('error', 'Something went wrong, please try again.');
-    res.redirect('/signup');
-  }
-});
-
-app.get('/login', (req, res) => {
-  res.render('login', {
-    title: 'Login',
-    user: req.user,
-    messages: req.flash('error'),
-  });
-});
-
-app.post(
-  '/login',
-  passport.authenticate('local', {
-    successRedirect: '/',
-    failureRedirect: '/login',
-    failureFlash: true,
-  })
-);
-
-// Profile Update Routes
-app.post('/update-bio', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/login');
-  }
-
-  const { bio } = req.body;
-
-  User.findByIdAndUpdate(req.user._id, { bio: bio }, { new: true })
-    .then((user) => {
-      res.redirect('/profile');
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Error updating bio');
-    });
-});
-
-app.post('/upload-profile-picture', upload.single('profilePicture'), (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/login');
-  }
-
-  const profilePicture = '/uploads/' + req.file.filename;
-
-  User.findByIdAndUpdate(req.user._id, { profilePicture: profilePicture }, { new: true })
-    .then((user) => {
-      res.redirect('/profile');
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Error uploading profile picture');
-    });
-});
-
-// Friend Management Routes
-app.post('/add-friend', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/login');
-  }
-
-  const { friendId } = req.body;
-
-  User.findById(friendId)
-    .then((friend) => {
-      if (!friend) {
-        return res.status(404).send('User not found');
-      }
-
-      req.user.friends.push(friendId);
-      friend.friends.push(req.user._id);
-
-      return Promise.all([req.user.save(), friend.save()]);
-    })
-    .then(() => {
-      res.redirect('/profile');
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Error adding friend');
-    });
-});
-
-app.post('/remove-friend', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/login');
-  }
-
-  const { friendId } = req.body;
-
-  User.findById(friendId)
-    .then((friend) => {
-      if (!friend) {
-        return res.status(404).send('User not found');
-      }
-
-      req.user.friends.pull(friendId);
-      friend.friends.pull(req.user._id);
-
-      return Promise.all([req.user.save(), friend.save()]);
-    })
-    .then(() => {
-      res.redirect('/profile');
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).send('Error removing friend');
-    });
+  res.render('chess', { title: 'Chess' });
 });
 
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).render('404', { title: 'Not Found', user: req.user });
+  res.status(404).render('404', { title: 'Not Found' });
+});
+
+// Error Handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  req.flash('error', err.message || 'Something went wrong!');
+  res.redirect('/');
 });
