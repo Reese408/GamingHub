@@ -1,0 +1,46 @@
+.rps-btn {
+    width: 120px;
+    height: 120px;
+    border: none;
+    border-radius: 50%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+    margin: 0 10px;
+}
+
+.rps-btn:hover {
+    transform: scale(1.1);
+}
+
+.rps-btn:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
+.rock { background-image: url('/images/rock.svg'); }
+.paper { background-image: url('/images/paper.svg'); }
+.scissor { background-image: url('/images/scissor.svg'); }
+
+#gameArea {
+    display: none;
+    min-height: 300px;
+}
+
+#winnerArea {
+    min-height: 80px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+#winnerArea button {
+  padding: 10px 20px;
+  font-size: 1.2rem;
+  margin: 0 10px;
+}
+
+#winnerArea h2 {
+  margin-bottom: 20px;
+}

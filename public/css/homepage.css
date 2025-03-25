@@ -1,21 +1,165 @@
-body{
-    height:auto;
-    width:100vw;
-    margin:0;
-    overflow-x:hidden;
-    background-color:#131b29;
+body {
+  height: auto;
+  width: 100vw;
+  margin: 0;
+  overflow-x: hidden;
+  background-color: #131b29;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.info{
-    margin:auto;
-    margin-right:10%;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    background-color: whitesmoke;
-    height:1000px;
-}
-.bod{
-    background-color: #131b29;
+.bod {
+  background-color: #131b29;
+  min-height: 100vh;
+  padding: 40px 0;
 }
 
+/* Welcome Section */
+.welcome-section {
+  padding: 60px 0;
+}
+
+.welcome-text h1 {
+  color: #ffffff;
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.welcome-text .lead {
+  color: #c0c0c0;
+  font-size: 1.2rem;
+  margin-bottom: 30px;
+}
+
+.welcome-image {
+  border-radius: 15px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.welcome-image:hover {
+  transform: scale(1.03);
+}
+
+/* Game Sections */
+.game-section {
+  margin-bottom: 60px;
+}
+
+.game-section h2 {
+  color: #ffffff;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 30px;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.game-section h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: #4e7bff;
+  border-radius: 2px;
+}
+
+/* Game Cards */
+.card-deck {
+  margin: 0 -15px;
+}
+
+/* Game Cards - Darker Background with White Text */
+.game-card {
+  background: #161f2d; /* Darker background */
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+  margin-bottom: 30px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-card .card-body {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background: #161f2d; /* Darker background */
+}
+
+.game-card .card-title {
+  color: #ffffff; /* White text */
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.game-card .card-text {
+  color: #ffffff; /* White text */
+  margin-bottom: 20px;
+  flex-grow: 1;
+  opacity: 0.9; /* Slightly transparent for better readability */
+}
+
+.game-card .card-img-top {
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  padding: 20px;
+  background: #1a2436; /* Slightly darker than card body */
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: #4e7bff;
+  border: none;
+  border-radius: 50px;
+  padding: 10px 25px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.btn-primary:hover {
+  background-color: #3a6bff;
+  transform: scale(1.05);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+  .game-card .card-img-top {
+    height: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .welcome-text h1 {
+    font-size: 2.2rem;
+  }
+
+  .game-section h2 {
+    font-size: 1.8rem;
+  }
+
+  .card-deck {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .game-card {
+    margin-bottom: 20px;
+  }
+
+  .game-card .card-img-top {
+    height: 200px;
+  }
+}

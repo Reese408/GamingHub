@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | GamingHub</title>
+    <link rel="stylesheet" href="/css/RPS.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Load Socket.IO from your server -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/javascript/RPS.js" defer></script>
+</head>
+<body>
+    <% if (typeof include !== 'undefined' && include.partials && include.partials.navbar) { %>
+        <%- include('partials/navbar', {user: user}) %>
+    <% } %>
+
+    <div class="container">
+        <h1 class="text-center my-4">Welcome to Rock, Paper, Scissors</h1>
+        
+        <div id="initial" class="text-center">
+            <div class="d-flex justify-content-center mb-4">
+                <img height="200" src="/images/rock.svg" class="img-responsive mx-3" alt="Rock">
+                <img height="200" src="/images/paper.svg" class="img-responsive mx-3" alt="Paper">
+                <img height="200" src="/images/scissor.svg" class="img-responsive mx-3" alt="Scissor">
+            </div>
+            
+            <button class="btn btn-primary btn-lg mb-3" onclick="createGame()">Create Game</button>
+            <div class="my-3 fs-4">or</div>
+            <input class="form-control mb-3 mx-auto" style="max-width: 300px;" placeholder="Enter Game Code" type="text" id="roomUniqueId">
+            <button class="btn btn-secondary btn-lg" onclick="joinGame()">Join Game</button>
+        </div>
+        
+        <div id="gamePlay" class="mt-5" style="display: none;">
+            <div id="waitingArea" class="text-center fs-4 mb-4"></div>
+            
+            <div id="gameArea" class="row" style="display: none;">
+                <div class="col-md-6 text-center">
+                    <h3>You:</h3>
+                    <div id="player1Choice" class="d-flex justify-content-center">
+                        <button class="rps-btn rock mx-2" onclick="sendChoice('Rock')"></button>
+                        <button class="rps-btn paper mx-2" onclick="sendChoice('Paper')"></button>
+                        <button class="rps-btn scissor mx-2" onclick="sendChoice('Scissor')"></button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 text-center">
+                    <h3>Opponent:</h3>
+                    <div id="player2Choice">
+                        <p id="opponentState" class="fs-5">Waiting for opponent...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="winnerArea" class="text-center display-4 my-5"></div>
+        </div>
+    </div>
+
+    <% if (typeof include !== 'undefined' && include.partials && include.partials.footer) { %>
+        <%- include('partials/footer') %>
+    <% } else { %>
+        <footer class="text-center py-3">
+            <p>Image courtesy from © Noun Project Inc.</p>
+        </footer>
+    <% } %>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
