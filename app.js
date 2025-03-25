@@ -13,7 +13,6 @@ const { Server } = require('socket.io');
 const User = require('./models/userModel');
 const authRoutes = require('./routes/authRoutes');
 const storeRoutes = require('./routes/storeRoutes');
-
 // Initialize app and servers
 const app = express();
 const server = http.createServer(app);
@@ -211,6 +210,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+app.use(function (req, res, next) {
+  res.locals.user = req.user || null;
+  next();
+});
+
 // Routes
 app.use(authRoutes);
 app.use(storeRoutes);
@@ -218,6 +222,12 @@ app.use(storeRoutes);
 // Main route
 app.get('/', (req, res) => {
   res.render('homepage', { title: 'Home', user: req.user });
+});
+
+// About route
+app.get('/about', (req, res) => {
+  res.render('about', { title: 'About Us',
+  });
 });
 
 // Game routes

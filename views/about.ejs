@@ -1,12 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gamers Hub About</title>
-</head>
-<body>
-    <%- include('partials/nav') %>
-    
-</body>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/css/About.css" rel="stylesheet" />
+  </head>
+  <body style="height: auto; width: 100vw; margin: 0; overflow-x: hidden; background-color: #131b29; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">
+    <nav><%- include('partials/nav') %></nav>
+    <div
+      id="headImage"
+      style="
+        background-image: url(/images/AboutLogo.jpg);
+        background-size: cover;
+        background-position: center;
+        height: 400px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      "
+    ></div>
+    <br /><br />
+    <div id="container" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; max-width: 800px; margin: auto; color: #e0e0e0">
+      <h1 style="font-size: 2.5rem; margin-bottom: 20px; color: #f39c12">Welcome to Gamers Hub</h1>
+      <h2 style="font-size: 1.8rem; margin-bottom: 30px; color: #3498db">A Gaming Hub Built for Fun & Connection!</h2>
+      <p style="width: 100%; font-size: 1.2rem; line-height: 1.6; margin-bottom: 30px">
+        Gamers Hub is a dynamic multiplayer gaming platform created by college students with one goal in mind: to bring players together through fun, simple, and interactive games. Whether you're
+        looking to challenge friends, earn rewards, or just unwind with quick matches, our platform offers a space where gamers of all levels can connect, compete, and grow.
+      </p>
+      <h2 style="font-size: 1.8rem; margin-bottom: 20px; color: #e74c3c">What We Offer:</h2>
+      <ul style="list-style: none; padding: 0; font-size: 1.2rem; line-height: 1.8; text-align: left; width: 100%">
+        <li style="margin-bottom: 10px">🎮 <b>Multiplayer Games</b> – Play fast-paced, easy-to-learn games with friends or players worldwide.</li>
+        <li style="margin-bottom: 10px">📊 <b>Player Profiles</b> – Track your stats, achievements, and progress as you climb the ranks.</li>
+        <li style="margin-bottom: 10px">🏆 <b>Rewards & Store</b> – Earn points by playing and redeem them for cool in-game items or perks while having a blast.</li>
+      </ul>
+      <p style="width: 100%; font-size: 1.2rem; line-height: 1.6; margin-top: 30px">
+        Created as a learning experience by a team of student developers, Gamers Hub is all about community, creativity, and friendly competition. Join us, make new friends, and let the games begin!
+      </p>
+    </div>
+    </div>
+  </body>
 </html>
