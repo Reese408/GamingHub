@@ -49,7 +49,16 @@ exports.addStoreItem = async (req, res) => {
         const { name, price, description, category } = req.body;
         console.log('Received fields:', { name, price, description, category });
 
-        if (!name || !price || !category) {
+        // Validate price is a valid number
+        const parsedPrice = parseInt(price);
+        if (isNaN(parsedPrice)) {
+            console.log('Validation failed - invalid price');
+            fs.unlinkSync(req.file.path);
+            req.flash('error', 'Price must be a valid number');
+            return res.redirect('/store');
+        }
+
+        if (!name || !category) {
             console.log('Validation failed - missing fields');
             fs.unlinkSync(req.file.path);
             req.flash('error', 'Name, price and category are required');
@@ -58,7 +67,7 @@ exports.addStoreItem = async (req, res) => {
 
         const newItem = new StoreItem({
             name,
-            price: parseInt(price),
+            price: parsedPrice,
             description,
             category,
             imageUrl: '/uploads/' + req.file.filename,
@@ -74,15 +83,18 @@ exports.addStoreItem = async (req, res) => {
         console.error('Error adding item:', err);
         
         if (req.file) {
-            fs.unlinkSync(req.file.path);
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (err) {
+                console.error('Failed to delete uploaded file:', err);
+            }
         }
 
         req.flash('error', 'Error adding item: ' + err.message);
         res.redirect('/store');
     }
 };
-
-// Handle purchasing an item
+//buy handler
 exports.buyItem = async (req, res) => {
     if (!req.isAuthenticated()) {
         req.flash('error', 'You must be logged in to buy items.');
@@ -106,11 +118,21 @@ exports.buyItem = async (req, res) => {
             return res.redirect('/store');
         }
 
+        // Deduct points
         user.points -= item.price;
-        user.items.push(itemId);
+
+        if (item.category === 'profile') {
+            // This is a background item, equip it instead of adding to the inventory
+            user.equippedItems = user.equippedItems || {};
+            user.equippedItems.background = item.imageUrl;
+        } else {
+            // This is a regular item, add it to the inventory
+            user.items.push(itemId);
+        }
+
         await user.save();
 
-        // Mark item as unavailable instead of deleting
+        // Mark item as unavailable (optional)
         await StoreItem.findByIdAndUpdate(itemId, { available: false });
 
         req.flash('success', `Item purchased successfully! ${item.price} points deducted.`);
@@ -121,6 +143,7 @@ exports.buyItem = async (req, res) => {
         res.redirect('/store');
     }
 };
+
 
 // Handle selling an item back to the store
 exports.sellItem = async (req, res) => {
@@ -163,13 +186,14 @@ exports.sellItem = async (req, res) => {
         return res.redirect('/profile');
     }
 };
-// Add this to your existing storeController.js
+
+// Get store items
 exports.getStoreItems = async (req, res) => {
     try {
-        const storeItems = await StoreItem.find({ available: true }); // Changed 'items' to 'storeItems'
+        const storeItems = await StoreItem.find({ available: true });
         res.render('store', { 
             title: 'Store',
-            storeItems, // Changed from 'items' to 'storeItems'
+            storeItems,
             user: req.user || null,
             messages: req.flash()
         });
@@ -178,11 +202,12 @@ exports.getStoreItems = async (req, res) => {
         req.flash('error', 'Failed to load store items');
         res.render('store', { 
             title: 'Store',
-            storeItems: [], // Changed from 'items' to 'storeItems'
+            storeItems: [],
             user: req.user || null,
             messages: req.flash()
         });
     }
 };
+
 // Export the upload middleware for use in routes
 exports.upload = upload;

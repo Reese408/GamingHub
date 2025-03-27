@@ -13,6 +13,7 @@
     <div class="container">
         <h1>Store</h1>
         
+        <!-- Flash Messages -->
         <% if (messages.error) { %>
             <div class="alert alert-error"><%= messages.error %></div>
         <% } %>
@@ -20,49 +21,84 @@
             <div class="alert alert-success"><%= messages.success %></div>
         <% } %>
 
+        <!-- Store Items Grid (Non-Background Items) -->
         <% if (storeItems && storeItems.length > 0) { %>
             <div class="items-grid">
                 <% storeItems.forEach(item => { %>
-                    <div class="item-card">
-                        <img src="<%= item.imageUrl %>" alt="<%= item.name %>">
-                        <h3><%= item.name %></h3>
-                        <p><%= item.description %></p>
-                        <p class="price"><%= item.price %> points</p>
-                        
-                        <% if (user) { %>
-                            <form action="/store/buy-item" method="POST">
-                                <input type="hidden" name="itemId" value="<%= item._id %>">
-                                <button type="submit" class="buy-button">Buy</button>
-                            </form>
-                        <% } %>
-                    </div>
+                    <% if (item.category !== 'profile') { %> <!-- Filter out background items for now --> 
+                        <div class="item-card">
+                            <img src="<%= item.imageUrl %>" alt="<%= item.name %>">
+                            <h3><%= item.name %></h3>
+                            <p><%= item.description %></p>
+                            <p class="price"><%= item.price %> points</p>
+                            
+                            <% if (user) { %>
+                                <form action="/store/buy-item" method="POST">
+                                    <input type="hidden" name="itemId" value="<%= item._id %>">
+                                    <button type="submit" class="buy-button">Buy</button>
+                                </form>
+                            <% } else { %>
+                                <p>You must be logged in to buy items.</p>
+                            <% } %>
+                        </div>
+                    <% } %>
                 <% }) %>
             </div>
         <% } else { %>
             <p>No items available in the store.</p>
         <% } %>
 
+        <!-- Background Items Section -->
+        <% if (storeItems && storeItems.length > 0) { %>
+            <div class="background-items-section">
+                <h2>Backgrounds</h2>
+                <div class="items-grid">
+                    <% storeItems.forEach(item => { %>
+                        <% if (item.category === 'profile') { %> <!-- Only background items -->
+                            <div class="item-card">
+                                <img src="<%= item.imageUrl %>" alt="<%= item.name %>">
+                                <h3><%= item.name %></h3>
+                                <p><%= item.description %></p>
+                                <p class="price"><%= item.price %> points</p>
+
+                                <% if (user) { %>
+                                    <form action="/store/buy-item" method="POST">
+                                        <input type="hidden" name="itemId" value="<%= item._id %>">
+                                        <button type="submit" class="buy-button">Buy</button>
+                                    </form>
+                                <% } else { %>
+                                    <p>You must be logged in to buy items.</p>
+                                <% } %>
+                            </div>
+                        <% } %>
+                    <% }) %>
+                </div>
+            </div>
+        <% } %>
+
+        <!-- Add New Item Form (Admin Only) -->
         <% if (user && user.isAdmin) { %>
-           <!-- Add this anywhere in your store.ejs -->
-<div class="add-item-form">
-    <h2>Add New Item</h2>
-    <form action="/store/add-item" method="POST" enctype="multipart/form-data">
-        <input type="text" name="name" placeholder="Item Name" required>
-        <input type="number" name="price" placeholder="Price in points" required>
-        <select name="category" required>
-            <option value="">Select Category</option>
-            <option value="weapon">Weapon</option>
-            <option value="armor">Armor</option>
-            <option value="potion">Potion</option>
-            <option value="special">Special</option>
-            <option value="profile">Profile Customization</option>
-        </select>
-        <textarea name="description" placeholder="Description"></textarea>
-        <input type="file" name="image" accept="image/*" required>
-        <button type="submit">Add Item</button>
-    </form>
-</div>
+            <div class="add-item-form">
+                <h2>Add New Item</h2>
+                <form action="/store/add-item" method="POST" enctype="multipart/form-data">
+                    <input type="text" name="name" placeholder="Item Name" required>
+                    <input type="number" name="price" placeholder="Price in points" required>
+                    <select name="category" required>
+                        <option value="">Select Category</option>
+                        <option value="weapon">Weapon</option>
+                        <option value="armor">Armor</option>
+                        <option value="potion">Potion</option>
+                        <option value="special">Special</option>
+                        <option value="profile">Profile Customization</option> <!-- Background items here -->
+                    </select>
+                    <textarea name="description" placeholder="Description"></textarea>
+                    <input type="file" name="image" accept="image/*" required>
+                    <button type="submit">Add Item</button>
+                </form>
+            </div>
         <% } %>
     </div>
+
+    <script src="/js/script.js"></script>
 </body>
 </html>
