@@ -206,4 +206,75 @@ router.post('/sell-item', async (req, res) => {
     res.redirect('/profile');
 });
 
+/* ---------------------- UPLOAD BACKGROUND IMAGE ---------------------- */
+router.post('/upload-background-image', upload.single('backgroundImage'), async (req, res) => {
+    if (!req.isAuthenticated()) {
+        req.flash('error', 'You must be logged in.');
+        return res.redirect('/login');
+    }
+
+    if (!req.file) {
+        req.flash('error', 'No file uploaded.');
+        return res.redirect('/profile');
+    }
+
+    try {
+        // Update the user's background image path
+        await User.findByIdAndUpdate(
+            req.user._id,
+            { backgroundImage: `/uploads/${req.file.filename}` },
+            { new: true }
+        );
+        req.flash('success', 'Background image updated successfully!');
+    } catch (err) {
+        console.error('Error updating background image:', err);
+        req.flash('error', 'Failed to update background image.');
+    }
+    res.redirect('/profile');
+});
+router.get('/profile/:userId', async (req, res) => {
+    try {
+        if (!req.isAuthenticated()) {
+            req.flash('error', 'You must be logged in to view profiles.');
+            return res.redirect('/login');
+        }
+
+        const { userId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            req.flash('error', 'Invalid user ID.');
+            return res.redirect('/profile');
+        }
+
+        // Fetch the target user's profile
+        const userProfile = await User.findById(userId)
+            .populate('friends', 'username profilePicture')
+            .populate('items')
+            .populate('profileItems.itemId');
+
+        // Fetch other users (excluding the current user and friends of the profile user)
+        const otherUsers = await User.find({
+            _id: { $ne: userId },
+            _id: { $nin: userProfile.friends.map(f => f._id) }
+        }).select('username profilePicture');
+
+        if (!userProfile) {
+            req.flash('error', 'User not found.');
+            return res.redirect('/profile');
+        }
+
+        res.render('profile', {
+            title: `${userProfile.username}'s Profile`,
+            user: userProfile,
+            isCurrentUser: req.user._id.toString() === userId,
+            otherUsers,  // Pass the suggested users for the other user
+            messages: req.flash()
+        });
+    } catch (err) {
+        console.error('Error fetching user profile:', err);
+        req.flash('error', 'Error loading profile.');
+        res.redirect('/profile');
+    }
+});
+
+
 module.exports = router;

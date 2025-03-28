@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/profile.css">
+</head>
+<body>
+    <%- include('partials/nav') %>
+
+    <div class="container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <img class="profile-picture" src="<%= user.profilePicture || '/images/default-profile.png' %>" alt="Profile Picture">
+            <h1><%= user.username %></h1>
+            <p>Welcome to <%= user.username %>'s profile!</p>
+            <p><strong>Points:</strong> <%= user.points %></p>
+        </div>
+
+        <!-- Profile Content -->
+        <div class="profile-content">
+            <!-- Left Side: User Info -->
+            <div class="profile-info">
+                <h2>About <%= user.username %></h2>
+                <p>Email: <%= user.email %></p>
+                <p class="bio"><%= user.bio || 'No bio yet.' %></p>
+            </div>
+
+            <!-- Right Side: User's Friends -->
+            <div class="profile-friends">
+                <h2><%= user.username %>'s Friends</h2>
+                <% if (user.friends && user.friends.length > 0) { %>
+                    <div class="friends-grid">
+                        <% user.friends.forEach(friend => { %>
+                            <div class="friend-card">
+                                <a href="/profile/<%= friend._id %>">
+                                    <img src="<%= friend.profilePicture || '/images/default-profile.png' %>" alt="<%= friend.username %>'s profile picture">
+                                </a>
+                                <h3><a href="/profile/<%= friend._id %>"><%= friend.username %></a></h3>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <p><%= user.username %> doesn't have any friends yet.</p>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        <% if (messages && messages.success) { %>
+            <div class="success-message"><%= messages.success %></div>
+        <% } %>
+        <% if (messages && messages.error) { %>
+            <div class="error-message"><%= messages.error %></div>
+        <% } %>
+    </div>
+</body>
+</html>

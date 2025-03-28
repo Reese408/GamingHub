@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     bio: { type: String, default: "" },               // New field for bio
-    profilePicture: { type: String, default: "/images/default.png" },     // URL to profile picture
+    profilePicture: { type: String, default: "/images/default-profile.png" },     // URL to profile picture
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Array of friends
     points: { type: Number, default: 0 },              // Points for the user
     items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'StoreItem' }],
