@@ -14,6 +14,7 @@ const User = require('./models/userModel');
 const authRoutes = require('./routes/authRoutes');
 const storeRoutes = require('./routes/storeRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const gameStateRoutes = require(path.join(__dirname, 'routes', 'gameStateRoutes'));
 const gameController = require('./controllers/gameController');
 
 // Initialize app and servers
@@ -26,7 +27,8 @@ const PORT = process.env.PORT || 3000;
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://Reese:Giantsus-2005@cluster0.9g6dv.mongodb.net/node-prac?retryWrites=true&w=majority&tls=true';
 
 // MongoDB Connection
-mongoose.connect(dbURI)
+mongoose
+  .connect(dbURI)
   .then(() => {
     console.log('Connected to MongoDB');
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
@@ -62,7 +64,7 @@ app.use(
       maxAge: 60 * 60 * 1000, // 1 hour session duration
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: 'strict',
     },
   })
 );
@@ -93,11 +95,11 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
-  }
+  },
 });
-const upload = multer({ 
+const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
 // Socket.IO Game Logic
@@ -107,6 +109,7 @@ io.on('connection', gameController.socketLogic);
 app.use(authRoutes);
 app.use('/store', storeRoutes);
 app.use(profileRoutes);
+app.use('/api/game-state', gameStateRoutes); // NEW: Mount game state routes
 
 // Game routes
 app.get('/rps', gameController.renderRps);
