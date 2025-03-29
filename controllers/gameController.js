@@ -1,133 +1,154 @@
-// controllers/gameController.js
-
+const User = require('../models/userModel');
 const rooms = {};
 
-exports.socketLogic = (socket) => {
-  console.log('User connected:', socket.id);
+module.exports = (io) => {
+  io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    // Clean up empty rooms
-    for (const room in rooms) {
-      if (io.sockets.adapter.rooms.get(room)?.size === 0) {
-        delete rooms[room];
-      }
-    }
-  });
-
-  socket.on('createGame', () => {
-    const roomUniqueId = makeid(6);
-    rooms[roomUniqueId] = {
-      p1Choice: null,
-      p2Choice: null,
-      p1Ready: false,
-      p2Ready: false,
+    // Helper function to generate room IDs
+    const makeid = (length = 6) => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
     };
-    socket.join(roomUniqueId);
-    socket.emit('newGame', { roomUniqueId: roomUniqueId });
-    console.log(`Game created: ${roomUniqueId}`);
+
+    // Create game handler
+    socket.on('createGame', () => {
+      try {
+        const roomUniqueId = makeid(6);
+        rooms[roomUniqueId] = {
+          p1Choice: null,
+          p2Choice: null,
+          p1Ready: false,
+          p2Ready: false,
+          sockets: [socket.id],
+          players: [],
+        };
+
+        socket.join(roomUniqueId);
+        socket.emit('newGame', { roomUniqueId });
+        console.log(`Game created: ${roomUniqueId}`);
+      } catch (err) {
+        console.error('Game creation error:', err);
+        socket.emit('error', { message: 'Failed to create game' });
+      }
+    });
+
+    // Join game handler
+    socket.on('joinGame', (data) => {
+      try {
+        if (!rooms[data.roomUniqueId]) {
+          return socket.emit('error', { message: 'Room not found' });
+        }
+        if (rooms[data.roomUniqueId].sockets.length >= 2) {
+          return socket.emit('error', { message: 'Room is full' });
+        }
+
+        rooms[data.roomUniqueId].sockets.push(socket.id);
+        socket.join(data.roomUniqueId);
+        io.to(data.roomUniqueId).emit('playersConnected');
+        console.log(`Player joined: ${data.roomUniqueId}`);
+      } catch (err) {
+        console.error('Join game error:', err);
+        socket.emit('error', { message: 'Failed to join game' });
+      }
+    });
+
+    // Player choice handler
+    socket.on('playerChoice', (data) => {
+      try {
+        const room = rooms[data.roomUniqueId];
+        if (!room) return;
+
+        const players = Array.from(io.sockets.adapter.rooms.get(data.roomUniqueId) || []);
+        const isPlayer1 = players[0] === socket.id;
+        const choiceKey = isPlayer1 ? 'p1Choice' : 'p2Choice';
+        const readyKey = isPlayer1 ? 'p1Ready' : 'p2Ready';
+
+        room[choiceKey] = data.rpsValue;
+        room[readyKey] = true;
+        console.log(`Player ${isPlayer1 ? '1' : '2'} chose ${data.rpsValue}`);
+
+        if (isPlayer1) {
+          io.to(data.roomUniqueId).emit('enableChoice');
+        }
+
+        if (room.p1Ready && room.p2Ready) {
+          io.to(data.roomUniqueId).emit('revealChoices', {
+            player1Choice: room.p1Choice,
+            player2Choice: room.p2Choice,
+          });
+
+          setTimeout(() => {
+            declareWinner(data.roomUniqueId);
+          }, 1000);
+        }
+      } catch (err) {
+        console.error('Choice error:', err);
+        socket.emit('error', { message: 'Failed to process choice' });
+      }
+    });
+
+    // Play again handler
+    socket.on('playAgain', (data) => {
+      const room = rooms[data.roomUniqueId];
+      if (room) {
+        room.p1Choice = null;
+        room.p2Choice = null;
+        room.p1Ready = false;
+        room.p2Ready = false;
+        io.to(data.roomUniqueId).emit('resetForNewRound');
+        console.log(`New round started in room: ${data.roomUniqueId}`);
+      }
+    });
+
+    // Disconnect handler
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.id);
+      for (const room in rooms) {
+        if (io.sockets.adapter.rooms.get(room)?.size === 0) {
+          delete rooms[room];
+        }
+      }
+    });
+
+    // Winner determination
+    function declareWinner(roomId) {
+      const room = rooms[roomId];
+      if (!room) return;
+
+      const { p1Choice, p2Choice } = room;
+      let winner = null;
+
+      if (p1Choice === p2Choice) {
+        winner = 'draw';
+      } else if ((p1Choice === 'Rock' && p2Choice === 'Scissors') || (p1Choice === 'Paper' && p2Choice === 'Rock') || (p1Choice === 'Scissors' && p2Choice === 'Paper')) {
+        winner = 'p1';
+      } else {
+        winner = 'p2';
+      }
+
+      console.log(`Game result in ${roomId}: ${winner}`);
+      io.to(roomId).emit('gameResult', { winner });
+
+      // Optional: Add database update for stats here
+    }
   });
 
-  socket.on('joinGame', (data) => {
-    if (!rooms[data.roomUniqueId]) {
-      return socket.emit('error', { message: 'Room not found' });
-    }
-    if (io.sockets.adapter.rooms.get(data.roomUniqueId)?.size >= 2) {
-      return socket.emit('error', { message: 'Room is full' });
-    }
-    socket.join(data.roomUniqueId);
-    io.to(data.roomUniqueId).emit('playersConnected');
-    console.log(`Player joined: ${data.roomUniqueId}`);
-  });
-
-  socket.on('playerChoice', (data) => {
-    const room = rooms[data.roomUniqueId];
-    if (!room) return;
-
-    const players = Array.from(io.sockets.adapter.rooms.get(data.roomUniqueId) || []);
-    const isPlayer1 = players[0] === socket.id;
-    const choiceKey = isPlayer1 ? 'p1Choice' : 'p2Choice';
-    const readyKey = isPlayer1 ? 'p1Ready' : 'p2Ready';
-
-    // Store choice and mark player as ready
-    room[choiceKey] = data.rpsValue;
-    room[readyKey] = true;
-    console.log(`Player ${isPlayer1 ? '1' : '2'} chose ${data.rpsValue}`);
-
-    // If player 1 just made their choice, enable player 2's UI
-    if (isPlayer1 && room.p1Choice !== null) {
-      io.to(data.roomUniqueId).emit('enableChoice');
-    }
-
-    // Only proceed when both players are ready
-    if (room.p1Ready && room.p2Ready) {
-      // Reveal choices to both players simultaneously
-      io.to(data.roomUniqueId).emit('revealChoices', {
-        player1Choice: room.p1Choice,
-        player2Choice: room.p2Choice,
-      });
-
-      // Determine winner after brief delay
-      setTimeout(() => {
-        declareWinner(data.roomUniqueId);
-      }, 1000);
-    }
-  });
-
-  socket.on('playAgain', (data) => {
-    const room = rooms[data.roomUniqueId];
-    if (room) {
-      // Reset choices for both players
-      room.p1Choice = null;
-      room.p2Choice = null;
-      room.p1Ready = false;
-      room.p2Ready = false;
-
-      // Notify both players to reset their UI
-      io.to(data.roomUniqueId).emit('resetForNewRound');
-      console.log(`New round started in room: ${data.roomUniqueId}`);
-    }
-  });
-
-  socket.on('leaveGame', (data) => {
-    socket.leave(data.roomUniqueId);
-    console.log(`Player left room: ${data.roomUniqueId}`);
-  });
-
-  function declareWinner(roomId) {
-    const { p1Choice, p2Choice } = rooms[roomId];
-    let winner = null;
-
-    if (p1Choice === p2Choice) {
-      winner = 'draw';
-    } else if ((p1Choice === 'Rock' && p2Choice === 'Scissor') || 
-               (p1Choice === 'Paper' && p2Choice === 'Rock') || 
-               (p1Choice === 'Scissor' && p2Choice === 'Paper')) {
-      winner = 'p1';
-    } else {
-      winner = 'p2';
-    }
-
-    console.log(`Game result in ${roomId}: ${winner}`);
-    io.to(roomId).emit('gameResult', { winner });
-  }
-
-  // Utility function for generating room IDs
-  function makeid(length = 6) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-  }
-};
-
-// Game Render Logic
-exports.renderRps = (req, res) => {
-  res.render('rps', { title: 'Rock Paper Scissors' });
-};
-
-exports.renderClicker = (req, res) => {
-  res.render('Clicker', { title: 'Clicker Game', funds: 0 });
-};
-
-exports.renderChess = (req, res) => {
-  res.render('chess', { title: 'Chess' });
+  return {
+    renderRps: (req, res) =>
+      res.render('rps', {
+        title: 'Rock Paper Scissors',
+        user: req.user,
+      }),
+    renderClicker: (req, res) =>
+      res.render('clicker', {
+        title: 'Clicker Game',
+        user: req.user,
+      }),
+    renderChess: (req, res) =>
+      res.render('chess', {
+        title: 'Chess',
+        user: req.user,
+      }),
+  };
 };

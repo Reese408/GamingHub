@@ -5,10 +5,10 @@ GamingHub-1/
 ├── controllers/
 │   ├── authController.js
 │   ├── gameController.js
-│   ├── gameStateController.js       # NEW - Handles game state persistence
+│   ├── gameStateController.js       
 │   └── storeController.js
 ├── models/
-│   ├── gameStateModel.js           # NEW - MongoDB schema for game progress
+│   ├── gameStateModel.js           
 │   ├── userModel.js
 │   ├── clickerModel.js
 │   └── storeModel.js
@@ -16,20 +16,20 @@ GamingHub-1/
 │   ├── css/
 │   │   └── style.css
 │   ├── js/
-│   │   ├── clicker.js              # UPDATED - Now with persistence
+│   │   ├── clicker.js              
 │   │   └── main.js
 │   ├── images/
 │   └── uploads/
 ├── routes/
 │   ├── authRoutes.js
-│   ├── gameStateRoutes.js          # NEW - API routes for game state
+│   ├── gameStateRoutes.js          
 │   ├── clickerRoutes.js
 │   ├── profileRoutes.js
 │   └── storeRoutes.js
 ├── views/
 │   ├── partials/
 │   │   └── nav.ejs
-│   ├── clicker.ejs                 # UPDATED - Includes all necessary elements
+│   ├── clicker.ejs                 
 │   ├── homepage.ejs
 │   ├── profile.ejs
 │   ├── store.ejs
