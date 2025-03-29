@@ -140,11 +140,15 @@ module.exports = (io) => {
         title: 'Rock Paper Scissors',
         user: req.user,
       }),
-    renderClicker: (req, res) =>
-      res.render('clicker', {
+    renderClicker: (req, res) => {
+      // Get funds from user or default to 0
+      const funds = req.user?.funds || 0;
+      return res.render('clicker', {
         title: 'Clicker Game',
         user: req.user,
-      }),
+        funds: funds, // Make sure to pass funds to the template
+      });
+    },
     renderChess: (req, res) =>
       res.render('chess', {
         title: 'Chess',
