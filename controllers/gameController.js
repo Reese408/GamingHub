@@ -16,12 +16,9 @@ module.exports = (io) => {
       try {
         const roomUniqueId = makeid(6);
         rooms[roomUniqueId] = {
-          p1Choice: null,
-          p2Choice: null,
-          p1Ready: false,
-          p2Ready: false,
-          sockets: [socket.id],
-          players: [],
+          p1: { socketId: socket.id, choice: null, ready: false },
+          p2: { socketId: null, choice: null, ready: false },
+          status: 'waiting',
         };
 
         socket.join(roomUniqueId);
@@ -36,16 +33,19 @@ module.exports = (io) => {
     // Join game handler
     socket.on('joinGame', (data) => {
       try {
-        if (!rooms[data.roomUniqueId]) {
-          return socket.emit('error', { message: 'Room not found' });
-        }
-        if (rooms[data.roomUniqueId].sockets.length >= 2) {
-          return socket.emit('error', { message: 'Room is full' });
-        }
+        const room = rooms[data.roomUniqueId];
+        if (!room) return socket.emit('error', { message: 'Room not found' });
+        if (room.p2.socketId) return socket.emit('error', { message: 'Room is full' });
 
-        rooms[data.roomUniqueId].sockets.push(socket.id);
+        room.p2.socketId = socket.id;
+        room.status = 'ready';
         socket.join(data.roomUniqueId);
-        io.to(data.roomUniqueId).emit('playersConnected');
+
+        // Notify both players
+        io.to(room.p1.socketId).emit('playersConnected');
+        io.to(room.p2.socketId).emit('playersConnected');
+        io.to(room.p1.socketId).emit('enableChoice');
+
         console.log(`Player joined: ${data.roomUniqueId}`);
       } catch (err) {
         console.error('Join game error:', err);
@@ -57,30 +57,32 @@ module.exports = (io) => {
     socket.on('playerChoice', (data) => {
       try {
         const room = rooms[data.roomUniqueId];
-        if (!room) return;
+        if (!room || room.status !== 'ready') return;
 
-        const players = Array.from(io.sockets.adapter.rooms.get(data.roomUniqueId) || []);
-        const isPlayer1 = players[0] === socket.id;
-        const choiceKey = isPlayer1 ? 'p1Choice' : 'p2Choice';
-        const readyKey = isPlayer1 ? 'p1Ready' : 'p2Ready';
+        // Determine which player is making the choice
+        const player = socket.id === room.p1.socketId ? 'p1' : 'p2';
+        room[player].choice = data.rpsValue;
+        room[player].ready = true;
 
-        room[choiceKey] = data.rpsValue;
-        room[readyKey] = true;
-        console.log(`Player ${isPlayer1 ? '1' : '2'} chose ${data.rpsValue}`);
+        console.log(`Player ${player} chose ${data.rpsValue}`);
 
-        if (isPlayer1) {
-          io.to(data.roomUniqueId).emit('enableChoice');
-        }
-
-        if (room.p1Ready && room.p2Ready) {
+        // If both players have chosen
+        if (room.p1.ready && room.p2.ready) {
+          const winner = determineWinner(room.p1.choice, room.p2.choice);
           io.to(data.roomUniqueId).emit('revealChoices', {
-            player1Choice: room.p1Choice,
-            player2Choice: room.p2Choice,
+            player1Choice: room.p1.choice,
+            player2Choice: room.p2.choice,
           });
 
           setTimeout(() => {
-            declareWinner(data.roomUniqueId);
+            io.to(data.roomUniqueId).emit('gameResult', { winner });
+            updateStats(room, winner);
+            room.status = 'completed';
           }, 1000);
+        } else {
+          // Enable choice for the other player
+          const otherPlayer = player === 'p1' ? 'p2' : 'p1';
+          io.to(room[otherPlayer].socketId).emit('enableChoice');
         }
       } catch (err) {
         console.error('Choice error:', err);
@@ -91,68 +93,79 @@ module.exports = (io) => {
     // Play again handler
     socket.on('playAgain', (data) => {
       const room = rooms[data.roomUniqueId];
-      if (room) {
-        room.p1Choice = null;
-        room.p2Choice = null;
-        room.p1Ready = false;
-        room.p2Ready = false;
-        io.to(data.roomUniqueId).emit('resetForNewRound');
-        console.log(`New round started in room: ${data.roomUniqueId}`);
-      }
+      if (!room) return;
+
+      // Reset choices
+      room.p1.choice = null;
+      room.p2.choice = null;
+      room.p1.ready = false;
+      room.p2.ready = false;
+      room.status = 'ready';
+
+      // Alternate who goes first
+      const starter = Math.random() > 0.5 ? 'p1' : 'p2';
+      io.to(room[starter].socketId).emit('enableChoice');
+      io.to(data.roomUniqueId).emit('resetForNewRound');
+
+      console.log(`New round in room: ${data.roomUniqueId}`);
     });
 
     // Disconnect handler
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
-      for (const room in rooms) {
-        if (io.sockets.adapter.rooms.get(room)?.size === 0) {
-          delete rooms[room];
+      for (const roomId in rooms) {
+        const room = rooms[roomId];
+        if (room.p1.socketId === socket.id || room.p2.socketId === socket.id) {
+          const otherPlayer = room.p1.socketId === socket.id ? room.p2.socketId : room.p1.socketId;
+          if (otherPlayer) {
+            io.to(otherPlayer).emit('opponentDisconnected');
+          }
+          delete rooms[roomId];
+          break;
         }
       }
     });
 
-    // Winner determination
-    function declareWinner(roomId) {
-      const room = rooms[roomId];
-      if (!room) return;
+    // Helper function to determine winner
+    function determineWinner(p1Choice, p2Choice) {
+      if (p1Choice === p2Choice) return 'draw';
+      if ((p1Choice === 'Rock' && p2Choice === 'Scissors') || (p1Choice === 'Paper' && p2Choice === 'Rock') || (p1Choice === 'Scissors' && p2Choice === 'Paper')) return 'p1';
+      return 'p2';
+    }
 
-      const { p1Choice, p2Choice } = room;
-      let winner = null;
+    // Helper function to update stats
+    async function updateStats(room, winner) {
+      try {
+        const p1Socket = io.sockets.sockets.get(room.p1.socketId);
+        const p2Socket = io.sockets.sockets.get(room.p2.socketId);
 
-      if (p1Choice === p2Choice) {
-        winner = 'draw';
-      } else if ((p1Choice === 'Rock' && p2Choice === 'Scissors') || (p1Choice === 'Paper' && p2Choice === 'Rock') || (p1Choice === 'Scissors' && p2Choice === 'Paper')) {
-        winner = 'p1';
-      } else {
-        winner = 'p2';
+        if (p1Socket?.request?.user && p2Socket?.request?.user) {
+          const update = { $set: { 'rpsStats.lastPlayed': new Date() } };
+
+          if (winner === 'draw') {
+            await User.updateMany({ _id: { $in: [p1Socket.request.user._id, p2Socket.request.user._id] } }, { $inc: { 'rpsStats.draws': 1 }, ...update });
+          } else if (winner === 'p1') {
+            await User.findByIdAndUpdate(p1Socket.request.user._id, { $inc: { 'rpsStats.wins': 1 }, ...update });
+            await User.findByIdAndUpdate(p2Socket.request.user._id, { $inc: { 'rpsStats.losses': 1 }, ...update });
+          } else {
+            await User.findByIdAndUpdate(p2Socket.request.user._id, { $inc: { 'rpsStats.wins': 1 }, ...update });
+            await User.findByIdAndUpdate(p1Socket.request.user._id, { $inc: { 'rpsStats.losses': 1 }, ...update });
+          }
+        }
+      } catch (err) {
+        console.error('Stats update error:', err);
       }
-
-      console.log(`Game result in ${roomId}: ${winner}`);
-      io.to(roomId).emit('gameResult', { winner });
-
-      // Optional: Add database update for stats here
     }
   });
 
   return {
-    renderRps: (req, res) =>
-      res.render('rps', {
-        title: 'Rock Paper Scissors',
-        user: req.user,
-      }),
-    renderClicker: (req, res) => {
-      // Get funds from user or default to 0
-      const funds = req.user?.funds || 0;
-      return res.render('clicker', {
+    renderRps: (req, res) => res.render('rps', { title: 'Rock Paper Scissors', user: req.user }),
+    renderClicker: (req, res) =>
+      res.render('clicker', {
         title: 'Clicker Game',
         user: req.user,
-        funds: funds, // Make sure to pass funds to the template
-      });
-    },
-    renderChess: (req, res) =>
-      res.render('chess', {
-        title: 'Chess',
-        user: req.user,
+        funds: req.user?.funds || 0,
       }),
+    renderChess: (req, res) => res.render('chess', { title: 'Chess', user: req.user }),
   };
 };
