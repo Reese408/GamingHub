@@ -24,8 +24,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-/* ---------------------- PROFILE PAGE ---------------------- */
-router.get('/profile', async (req, res) => {
+/* ---------------------- MAIN PROFILE PAGE ---------------------- */
+router.get('/', async (req, res) => {
     try {
         if (!req.isAuthenticated()) {
             req.flash('error', 'You must be logged in to view profiles.');
@@ -42,7 +42,6 @@ router.get('/profile', async (req, res) => {
             _id: { $nin: user.friends.map(f => f._id) }
         }).select('username profilePicture');
 
-        // Get the current user's equipped background
         const backgroundImage = user.equippedItems.background;
 
         res.render('profile', {
@@ -50,7 +49,7 @@ router.get('/profile', async (req, res) => {
             user,
             otherUsers,
             currentUserId: req.user._id.toString(),
-            backgroundImage,  // Pass background image to the view
+            backgroundImage,
             messages: req.flash()
         });
     } catch (err) {
@@ -60,8 +59,8 @@ router.get('/profile', async (req, res) => {
     }
 });
 
-/* ---------------------- PROFILE PAGE FOR OTHER USERS ---------------------- */
-router.get('/profile/:userId', async (req, res) => {
+/* ---------------------- OTHER USER'S PROFILE PAGE ---------------------- */
+router.get('/:userId', async (req, res) => {
     try {
         if (!req.isAuthenticated()) {
             req.flash('error', 'You must be logged in to view profiles.');
@@ -74,7 +73,6 @@ router.get('/profile/:userId', async (req, res) => {
             return res.redirect('/profile');
         }
 
-        // Fetch the target user's profile
         const userProfile = await User.findById(userId)
             .populate('friends', 'username profilePicture')
             .populate('items')
@@ -85,16 +83,15 @@ router.get('/profile/:userId', async (req, res) => {
             return res.redirect('/profile');
         }
 
-        // Fetch other users (excluding the current user and friends of the profile user)
         const otherUsers = await User.find({
             _id: { $ne: userId },
             _id: { $nin: userProfile.friends.map(f => f._id) }
         }).select('username profilePicture');
 
-        res.render('friends', { // Use the 'friends' template for other user profiles
+        res.render('friends', {
             title: `${userProfile.username}'s Profile`,
             user: userProfile,
-            friends: userProfile.friends,  // Make sure 'friends' is passed to the view
+            friends: userProfile.friends,
             isCurrentUser: req.user._id.toString() === userId,
             otherUsers,
             messages: req.flash()
@@ -105,7 +102,6 @@ router.get('/profile/:userId', async (req, res) => {
         res.redirect('/profile');
     }
 });
-
 
 /* ---------------------- UPDATE BIO ---------------------- */
 router.post('/update-bio', async (req, res) => {
@@ -165,7 +161,6 @@ router.post('/add-friend', async (req, res) => {
 
     try {
         const { friendId } = req.body;
-        // Check if already friends
         const currentUser = await User.findById(req.user._id);
         if (currentUser.friends.includes(friendId)) {
             req.flash('error', 'You are already friends with this user.');
@@ -202,6 +197,7 @@ router.post('/remove-friend', async (req, res) => {
     }
     res.redirect('/profile');
 });
+
 /* ---------------------- UPDATE WIN/LOSS RECORD ---------------------- */
 router.post('/update-record', async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -209,7 +205,7 @@ router.post('/update-record', async (req, res) => {
         return res.redirect('/login');
     }
 
-    const { result, opponentId } = req.body; // result: 'win' or 'loss', opponentId: opponent's user ID
+    const { result, opponentId } = req.body;
 
     if (!['win', 'loss'].includes(result)) {
         req.flash('error', 'Invalid game result.');
@@ -233,7 +229,6 @@ router.post('/update-record', async (req, res) => {
             opponent.wins += 1;
         }
 
-        // Save both users' updated records
         await currentUser.save();
         await opponent.save();
 
@@ -245,6 +240,7 @@ router.post('/update-record', async (req, res) => {
 
     res.redirect('/profile');
 });
+
 /* ---------------------- SELL ITEM ---------------------- */
 router.post('/sell-item', async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -259,33 +255,27 @@ router.post('/sell-item', async (req, res) => {
             return res.redirect('/profile');
         }
 
-        // Fetch the item from the Store Items collection
         const item = await StoreItem.findById(itemId);
         if (!item) {
             req.flash('error', 'Item not found.');
             return res.redirect('/profile');
         }
 
-        // Fetch the user from the Users collection
         const user = await User.findById(req.user._id);
         const itemIdObj = new mongoose.Types.ObjectId(itemId);
 
-        // Check if the user owns the item
         if (!user.items.some(id => id.equals(itemIdObj))) {
             req.flash('error', 'You do not own this item.');
             return res.redirect('/profile');
         }
 
-        // Calculate refund amount (80% of the item's price)
         const refundAmount = Math.floor(item.price * 0.8);
 
-        // Update the user's inventory and points
         await User.findByIdAndUpdate(req.user._id, {
             $pull: { items: itemIdObj },
             $inc: { points: refundAmount }
         });
 
-        // Mark the item as available again
         await StoreItem.findByIdAndUpdate(itemId, { available: true });
 
         req.flash('success', `Sold ${item.name} for ${refundAmount} points!`);
@@ -296,6 +286,8 @@ router.post('/sell-item', async (req, res) => {
 
     res.redirect('/profile');
 });
+
+/* ---------------------- EQUIP BACKGROUND ---------------------- */
 router.post('/equip-background', async (req, res) => {
     if (!req.isAuthenticated()) {
         req.flash('error', 'You must be logged in.');
@@ -303,9 +295,7 @@ router.post('/equip-background', async (req, res) => {
     }
 
     try {
-        const { backgroundUrl } = req.body; // Get background URL
-
-        console.log("Received background URL:", backgroundUrl); // Debugging log
+        const { backgroundUrl } = req.body;
 
         if (!backgroundUrl) {
             req.flash('error', 'Invalid background selection.');
@@ -314,20 +304,14 @@ router.post('/equip-background', async (req, res) => {
 
         const user = await User.findById(req.user._id);
 
-        // Ensure the user owns the background
-        console.log("User owned backgrounds:", user.backgrounds); // Debugging log
-
         if (!user.backgrounds.includes(backgroundUrl)) {
             req.flash('error', 'You do not own this background.');
             return res.redirect('/profile');
         }
 
-        // Update the equipped background
         await User.findByIdAndUpdate(req.user._id, { 
             'equippedItems.background': backgroundUrl 
         });
-
-        console.log("Background updated successfully!"); // Debugging log
 
         req.flash('success', 'Background equipped successfully!');
     } catch (err) {
@@ -337,7 +321,7 @@ router.post('/equip-background', async (req, res) => {
     res.redirect('/profile');
 });
 
-
+/* ---------------------- UPDATE BACKGROUND ---------------------- */
 router.post('/update-background', async (req, res) => {
     if (!req.isAuthenticated()) {
         req.flash('error', 'You must be logged in.');
@@ -345,7 +329,7 @@ router.post('/update-background', async (req, res) => {
     }
 
     try {
-        const { backgroundId } = req.body; // Get the selected backgroundId from the form
+        const { backgroundId } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(backgroundId)) {
             req.flash('error', 'Invalid background ID.');
@@ -353,8 +337,6 @@ router.post('/update-background', async (req, res) => {
         }
 
         const user = await User.findById(req.user._id);
-
-        // Ensure the user owns the background
         const ownedBackground = user.profileItems.find(item => 
             item.itemId.toString() === backgroundId
         );
@@ -364,7 +346,6 @@ router.post('/update-background', async (req, res) => {
             return res.redirect('/profile');
         }
 
-        // Update the equipped background
         await User.findByIdAndUpdate(req.user._id, { 
             'equippedItems.background': backgroundId 
         });
@@ -377,8 +358,5 @@ router.post('/update-background', async (req, res) => {
 
     res.redirect('/profile');
 });
-
-
-
 
 module.exports = router;

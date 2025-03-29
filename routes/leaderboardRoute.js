@@ -1,21 +1,26 @@
-// leaderboardRouter.js
+// routes/leaderboardRoute.js
 const express = require('express');
 const router = express.Router();
-const User = require('../models/userModel'); // Assuming User model contains wins and losses fields
+const User = require('../models/userModel');
 
-// Leaderboard Route
-router.get('/leaderboard', async (req, res) => {
+// Remove '/leaderboard' from the route path since it will be mounted with this prefix
+router.get('/', async (req, res) => {
     try {
-        // Fetch users sorted by wins in descending order
         const users = await User.find()
-            .sort({ wins: -1 })  // Sort by wins in descending order
-            .select('username wins losses profilePicture')  // Fetch required fields
-            .limit(10);  // Limit to top 10 players (adjust as needed)
+            .sort({ wins: -1 })
+            .select('username wins losses profilePicture')
+            .limit(10);
 
-        res.render('leaderboard', { users });
+        res.render('leaderboard', { 
+            title: 'Leaderboard',
+            users,
+            user: req.user || null,  // Pass current user for template
+            messages: req.flash() 
+        });
     } catch (err) {
         console.error(err);
-        res.status(500).send('Error fetching leaderboard');
+        req.flash('error', 'Error loading leaderboard');
+        res.redirect('/');
     }
 });
 

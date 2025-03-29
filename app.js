@@ -6,17 +6,9 @@ const passport = require('passport');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const flash = require('connect-flash');
-const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
-const User = require('./models/userModel');
-const authRoutes = require('./routes/authRoutes');
-const storeRoutes = require('./routes/storeRoutes');
-const profileRoutes = require('./routes/profileRoutes');
-const gameStateRoutes = require(path.join(__dirname, 'routes', 'gameStateRoutes'));
-const gameController = require('./controllers/gameController');
 
 // Initialize app and servers
 const app = express();
@@ -26,146 +18,120 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://Reese:Giantsus-2005@cluster0.9g6dv.mongodb.net/node-prac?retryWrites=true&w=majority&tls=true';
 
-// Trust proxy for production environments
+// Trust proxy for production
 app.set('trust proxy', 1);
 
-// Session Middleware with MongoStore
+// Session Configuration
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: dbURI,
+  store: MongoStore.create({ 
+    mongoUrl: dbURI, 
     collectionName: 'sessions',
+    ttl: 24 * 60 * 60 // 1 day
   }),
   cookie: {
-    maxAge: 60 * 60 * 1000, // 1 hour
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  },
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  }
 });
 
-// Configure Socket.IO with proper settings
+// Socket.IO Setup
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: process.env.NODE_ENV === 'production' 
+      ? process.env.CLIENT_URL 
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'],
     methods: ['GET', 'POST'],
-    credentials: true,
-  },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true,
-  perMessageDeflate: {
-    threshold: 1024,
-    zlibDeflateOptions: {
-      chunkSize: 16 * 1024,
-    },
-  },
-  pingTimeout: 60000,
-  pingInterval: 25000,
+    credentials: true
+  }
 });
 
-// MongoDB Connection
-mongoose
-  .connect(dbURI)
+// Database Connection
+mongoose.connect(dbURI)
   .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB Connection Error:', err));
+  .catch(err => {
+    console.error('MongoDB Connection Error:', err);
+    process.exit(1);
+  });
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('Uploads directory created:', uploadsDir);
-}
-
-// Middleware & Static Files
-app.use(express.static('public'));
+// Middleware
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(morgan('dev'));
-
-// CORS headers
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : 'http://localhost:3000');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  next();
-});
-
-// Serve uploads folder
-app.use('/uploads', express.static(uploadsDir));
-
-// Session and authentication
 app.use(sessionMiddleware);
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
 require('./config/passport');
 
-// Make user available to views
+// Make user available to all views
 app.use((req, res, next) => {
-  res.locals.user = req.user;
+  res.locals.user = req.user || null;
   res.locals.messages = req.flash();
   next();
 });
 
-// View engine
+// View Engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// File Upload Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname),
-});
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-});
+// Initialize Socket.IO Handlers
+const { initSockets } = require('./controllers/gameController');
+const gameHandlers = initSockets(io);
 
-// Socket.IO Authentication
-io.use((socket, next) => {
-  sessionMiddleware(socket.request, {}, next);
-});
+// Routes
+app.use('/', require('./routes/authRoutes'));
+app.use('/store', require('./routes/storeRoutes'));
+app.use('/profile', require('./routes/profileRoutes'));
+app.use('/game-state', require('./routes/gameStateRoutes'));
+app.use('/leaderboard', require('./routes/leaderboardRoute'));
+app.use('/clicker', require('./routes/clickerRoutes'));
 
-// Socket.IO Connection Handling
-io.on('connection', (socket) => {
-  console.log('New connection:', socket.id);
+// Game Routes
+const { renderRps, renderClicker, renderChess } = require('./controllers/gameController');
+app.get('/games/rps', renderRps);
+app.get('/games/clicker', renderClicker);
+app.get('/games/chess', renderChess);
 
-  socket.on('disconnect', (reason) => {
-    console.log('Disconnected:', socket.id, 'Reason:', reason);
+// Main Routes
+app.get('/', (req, res) => {
+  res.render('homepage', { 
+    title: 'Home',
+    user: req.user || null
   });
 });
 
-// Initialize Game Controller
-const gameHandlers = gameController(io);
-
-// Routes
-app.use(authRoutes);
-app.use('/store', storeRoutes);
-app.use(profileRoutes);
-
-// Game routes
-app.get('/rps', gameController.renderRps);
-app.get('/clicker', gameController.renderClicker);
-app.get('/chess', gameController.renderChess);
-
-// Main route
-app.get('/', (req, res) => {
-  res.render('homepage', { title: 'Home' });
-});
-
-// About route
 app.get('/about', (req, res) => {
-  res.render('about', { title: 'About Us' });
+  res.render('about', { 
+    title: 'About Us',
+    user: req.user || null
+  });
 });
 
 // Error Handlers
-app.use((req, res) => res.status(404).render('404', { title: 'Not Found' }));
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  req.flash('error', err.message || 'Something went wrong!');
-  res.redirect('/');
+app.use((req, res, next) => {
+  res.status(404).render('404', { 
+    title: 'Page Not Found',
+    user: req.user || null
+  });
 });
 
-// Start server
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.stack);
+  res.status(500).render('error', { 
+    title: 'Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!',
+    user: req.user || null
+  });
+});
+
+// Start Server
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+});

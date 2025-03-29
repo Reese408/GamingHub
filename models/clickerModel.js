@@ -22,4 +22,5 @@ const gameStateSchema = new mongoose.Schema({
   shipFleetMultiplier: { type: Number, default: 50 },
 });
 
-module.exports = mongoose.model('GameState', gameStateSchema);
+// Check if model already exists before defining it
+module.exports = mongoose.models.GameState || mongoose.model('GameState', gameStateSchema);
