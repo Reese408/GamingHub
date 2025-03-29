@@ -3,57 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/profile.css">
+    <title><%= title || (user.username + "'s Profile") %></title>
+    <link rel="stylesheet" href="/css/friends.css">
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@latest"></script>
 </head>
 <body>
+    <!-- Vanta Background Effect -->
+    <div id="friends-page"></div>
+
     <%- include('partials/nav') %>
 
+    <!-- Check if user has a background and apply it -->
+    <% if (user.equippedItems && user.equippedItems.background) { %>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const backgroundType = "<%= user.equippedItems.background %>";
+
+                // If background is an image URL
+                if (backgroundType.startsWith('http')) {
+                    document.body.style.backgroundImage = `url('${backgroundType}')`;
+                    document.body.style.backgroundSize = 'cover';
+                    document.body.style.backgroundPosition = 'center';
+                    document.body.style.backgroundAttachment = 'fixed';
+                }
+                // If background is 'waves' effect
+                else if (backgroundType === 'waves') {
+                    VANTA.WAVES({
+                        el: "#friends-page",
+                        color: 0x3b82f6,
+                        waveHeight: 20,
+                        waveSpeed: 1.5,
+                        zoom: 0.85
+                    });
+                }
+                // If background is a relative path (stored image)
+                else if (backgroundType) {
+                    let imageUrl = backgroundType;
+                    if (!imageUrl.startsWith('/uploads/')) {
+                        imageUrl = `/uploads/${imageUrl}`;
+                    }
+                    document.body.style.backgroundImage = `url('${imageUrl}')`;
+                    document.body.style.backgroundSize = 'cover';
+                    document.body.style.backgroundPosition = 'center';
+                    document.body.style.backgroundAttachment = 'fixed';
+                }
+                else {
+                    document.body.style.backgroundColor = '#f0f0f0';
+                }
+            });
+        </script>
+    <% } %>
+
     <div class="container">
-        <!-- Profile Header -->
         <div class="profile-header">
-            <img class="profile-picture" src="<%= user.profilePicture || '/images/default-profile.png' %>" alt="Profile Picture">
-            <h1><%= user.username %></h1>
-            <p>Welcome to <%= user.username %>'s profile!</p>
-            <p><strong>Points:</strong> <%= user.points %></p>
-        </div>
-
-        <!-- Profile Content -->
-        <div class="profile-content">
-            <!-- Left Side: User Info -->
-            <div class="profile-info">
-                <h2>About <%= user.username %></h2>
-                <p>Email: <%= user.email %></p>
-                <p class="bio"><%= user.bio || 'No bio yet.' %></p>
-            </div>
-
-            <!-- Right Side: User's Friends -->
-            <div class="profile-friends">
-                <h2><%= user.username %>'s Friends</h2>
-                <% if (user.friends && user.friends.length > 0) { %>
-                    <div class="friends-grid">
-                        <% user.friends.forEach(friend => { %>
-                            <div class="friend-card">
-                                <a href="/profile/<%= friend._id %>">
-                                    <img src="<%= friend.profilePicture || '/images/default-profile.png' %>" alt="<%= friend.username %>'s profile picture">
-                                </a>
-                                <h3><a href="/profile/<%= friend._id %>"><%= friend.username %></a></h3>
-                            </div>
-                        <% }) %>
-                    </div>
-                <% } else { %>
-                    <p><%= user.username %> doesn't have any friends yet.</p>
-                <% } %>
+            <h1><%= user.username %>'s Profile</h1>
+            <div class="profile-picture">
+                <img src="<%= user.profilePicture || '/images/default-profile.png' %>" alt="<%= user.username %>'s profile picture">
             </div>
         </div>
 
-        <!-- Flash Messages -->
-        <% if (messages && messages.success) { %>
-            <div class="success-message"><%= messages.success %></div>
+        <!-- Bio Section -->
+        <section class="bio">
+            <h2>Bio</h2>
+            <p><%= user.bio || "This user has not set a bio yet." %></p>
+        </section>
+
+        <!-- Points Section -->
+        <section class="points">
+            <h2>Points</h2>
+            <p><%= user.points || 0 %> Points</p>
+        </section>
+        <section class="record">
+            <h2>Wins</h2>
+            <p><%= user.wins || 0 %> Wins</p>
+            <br>
+            <h2>Losses</h2>
+            <p><%= user.losses || 0 %> Losses</p>
+        </section>
+
+        <!-- Items Table -->
+        <!-- Items Section -->
+    <section class="items">
+        <h2><%= user.username %>'s Items</h2>
+        <% if (user.items && user.items.length > 0) { %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Item Description</th>
+                        <th>Item Image</th>
+                        <th>Item Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% user.items.forEach(item => { %>
+                        <tr>
+                            <td><%= item.name %></td>
+                            <td><%= item.description %></td>
+                            <td>
+                                <% if (item.imageUrl) { %>
+                                    <img src="<%= item.imageUrl %>" alt="<%= item.name %>" class="item-img">
+                                <% } else { %>
+                                    <img src="/images/default-image.jpg" alt="<%= item.name %>" class="item-img">
+                                <% } %>
+                            </td>
+                            <td><%= item.price %></td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        <% } else { %>
+            <p>No items to display.</p>
         <% } %>
-        <% if (messages && messages.error) { %>
-            <div class="error-message"><%= messages.error %></div>
-        <% } %>
+    </section>
+
+
+        <!-- Friends Table -->
+        <section class="friends">
+            <h2><%= user.username %>'s Friends</h2>
+            <% if (friends.length > 0) { %>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Friend's Username</th>
+                            <th>Profile Picture</th>
+                            <th>Items</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% friends.forEach(friend => { %>
+                            <tr>
+                                <td>
+                                    <a href="/profile/<%= friend._id %>"><%= friend.username %></a>
+                                </td>
+                                <td>
+                                    <a href="/profile/<%= friend._id %>">
+                                        <img src="<%= friend.profilePicture || '/images/default-profile.png' %>" alt="<%= friend.username %>'s profile picture">
+                                    </a>
+                                </td>
+                                <td>
+                                    <% if (friend.items && friend.items.length > 0) { %>
+                                        <ul>
+                                            <% friend.items.forEach(item => { %>
+                                                <li>
+                                                    <strong><%= item.name %></strong><br>
+                                                    <% if (item.image) { %>
+                                                        <img src="<%= item.image %>" alt="<%= item.name %>" class="item-img">
+                                                    <% } else { %>
+                                                        <img src="/images/default-item.png" alt="<%= item.name %>" class="item-img">
+                                                    <% } %>
+                                                    <p><%= item.description %></p>
+                                                </li>
+                                            <% }); %>
+                                        </ul>
+                                    <% } else { %>
+                                        <p>No items available.</p>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            <% } else { %>
+                <p>You don't have any friends yet. Add some!</p>
+            <% } %>
+        </section>
+        
     </div>
+
+    <!-- Flash Messages -->
+    <% if (messages && messages.success) { %>
+        <div class="success-message"><%= messages.success %></div>
+    <% } %>
+    <% if (messages && messages.error) { %>
+        <div class="error-message"><%= messages.error %></div>
+    <% } %>
+
 </body>
 </html>

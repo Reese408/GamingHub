@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/userModel');
-const StoreItem = require('../models/storeModel');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
@@ -56,6 +55,53 @@ router.get('/profile', async (req, res) => {
     }
 });
 
+/* ---------------------- PROFILE PAGE FOR OTHER USERS ---------------------- */
+router.get('/profile/:userId', async (req, res) => {
+    try {
+        if (!req.isAuthenticated()) {
+            req.flash('error', 'You must be logged in to view profiles.');
+            return res.redirect('/login');
+        }
+
+        const { userId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            req.flash('error', 'Invalid user ID.');
+            return res.redirect('/profile');
+        }
+
+        // Fetch the target user's profile
+        const userProfile = await User.findById(userId)
+            .populate('friends', 'username profilePicture')
+            .populate('items')
+            .populate('profileItems.itemId');
+
+        if (!userProfile) {
+            req.flash('error', 'User not found.');
+            return res.redirect('/profile');
+        }
+
+        // Fetch other users (excluding the current user and friends of the profile user)
+        const otherUsers = await User.find({
+            _id: { $ne: userId },
+            _id: { $nin: userProfile.friends.map(f => f._id) }
+        }).select('username profilePicture');
+
+        res.render('friends', { // Use the 'friends' template for other user profiles
+            title: `${userProfile.username}'s Profile`,
+            user: userProfile,
+            friends: userProfile.friends,  // Make sure 'friends' is passed to the view
+            isCurrentUser: req.user._id.toString() === userId,
+            otherUsers,
+            messages: req.flash()
+        });
+    } catch (err) {
+        console.error('Error fetching user profile:', err);
+        req.flash('error', 'Error loading profile.');
+        res.redirect('/profile');
+    }
+});
+
+
 /* ---------------------- UPDATE BIO ---------------------- */
 router.post('/update-bio', async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -65,6 +111,11 @@ router.post('/update-bio', async (req, res) => {
 
     try {
         const { bio } = req.body;
+        if (!bio) {
+            req.flash('error', 'Bio cannot be empty.');
+            return res.redirect('/profile');
+        }
+
         await User.findByIdAndUpdate(req.user._id, { bio }, { new: true });
         req.flash('success', 'Bio updated successfully!');
     } catch (err) {
@@ -109,6 +160,13 @@ router.post('/add-friend', async (req, res) => {
 
     try {
         const { friendId } = req.body;
+        // Check if already friends
+        const currentUser = await User.findById(req.user._id);
+        if (currentUser.friends.includes(friendId)) {
+            req.flash('error', 'You are already friends with this user.');
+            return res.redirect('/profile');
+        }
+
         await User.findByIdAndUpdate(req.user._id, { $addToSet: { friends: friendId } });
         await User.findByIdAndUpdate(friendId, { $addToSet: { friends: req.user._id } });
 
@@ -139,41 +197,49 @@ router.post('/remove-friend', async (req, res) => {
     }
     res.redirect('/profile');
 });
-
-/* ---------------------- EQUIP ITEM ---------------------- */
-router.post('/equip-item', async (req, res) => {
+/* ---------------------- UPDATE WIN/LOSS RECORD ---------------------- */
+router.post('/update-record', async (req, res) => {
     if (!req.isAuthenticated()) {
         req.flash('error', 'You must be logged in.');
         return res.redirect('/login');
     }
 
-    try {
-        const { itemId, itemType } = req.body;
-        const item = await StoreItem.findById(itemId);
-        const user = await User.findById(req.user._id);
+    const { result, opponentId } = req.body; // result: 'win' or 'loss', opponentId: opponent's user ID
 
-        if (!user.profileItems.find(i => i.itemId.toString() === itemId.toString())) {
-            req.flash('error', 'You do not own this item.');
+    if (!['win', 'loss'].includes(result)) {
+        req.flash('error', 'Invalid game result.');
+        return res.redirect('/profile');
+    }
+
+    try {
+        const currentUser = await User.findById(req.user._id);
+        const opponent = await User.findById(opponentId);
+
+        if (!opponent) {
+            req.flash('error', 'Opponent not found.');
             return res.redirect('/profile');
         }
 
-        await User.updateOne(
-            { _id: req.user._id },
-            { 
-                $set: { [`equippedItems.${itemType}`]: item.imageUrl },
-                'profileItems.$[elem].equipped': true
-            },
-            { arrayFilters: [{ 'elem.itemId': new mongoose.Types.ObjectId(itemId) }] }
-        );
+        if (result === 'win') {
+            currentUser.wins += 1;
+            opponent.losses += 1;
+        } else if (result === 'loss') {
+            currentUser.losses += 1;
+            opponent.wins += 1;
+        }
 
-        req.flash('success', `${item.name} equipped!`);
+        // Save both users' updated records
+        await currentUser.save();
+        await opponent.save();
+
+        req.flash('success', `You ${result} the game!`);
     } catch (err) {
-        console.error(err);
-        req.flash('error', 'Error equipping item.');
+        console.error('Error updating win/loss record:', err);
+        req.flash('error', 'Failed to update win/loss record.');
     }
+
     res.redirect('/profile');
 });
-
 /* ---------------------- SELL ITEM ---------------------- */
 router.post('/sell-item', async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -205,76 +271,5 @@ router.post('/sell-item', async (req, res) => {
     }
     res.redirect('/profile');
 });
-
-/* ---------------------- UPLOAD BACKGROUND IMAGE ---------------------- */
-router.post('/upload-background-image', upload.single('backgroundImage'), async (req, res) => {
-    if (!req.isAuthenticated()) {
-        req.flash('error', 'You must be logged in.');
-        return res.redirect('/login');
-    }
-
-    if (!req.file) {
-        req.flash('error', 'No file uploaded.');
-        return res.redirect('/profile');
-    }
-
-    try {
-        // Update the user's background image path
-        await User.findByIdAndUpdate(
-            req.user._id,
-            { backgroundImage: `/uploads/${req.file.filename}` },
-            { new: true }
-        );
-        req.flash('success', 'Background image updated successfully!');
-    } catch (err) {
-        console.error('Error updating background image:', err);
-        req.flash('error', 'Failed to update background image.');
-    }
-    res.redirect('/profile');
-});
-router.get('/profile/:userId', async (req, res) => {
-    try {
-        if (!req.isAuthenticated()) {
-            req.flash('error', 'You must be logged in to view profiles.');
-            return res.redirect('/login');
-        }
-
-        const { userId } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            req.flash('error', 'Invalid user ID.');
-            return res.redirect('/profile');
-        }
-
-        // Fetch the target user's profile
-        const userProfile = await User.findById(userId)
-            .populate('friends', 'username profilePicture')
-            .populate('items')
-            .populate('profileItems.itemId');
-
-        // Fetch other users (excluding the current user and friends of the profile user)
-        const otherUsers = await User.find({
-            _id: { $ne: userId },
-            _id: { $nin: userProfile.friends.map(f => f._id) }
-        }).select('username profilePicture');
-
-        if (!userProfile) {
-            req.flash('error', 'User not found.');
-            return res.redirect('/profile');
-        }
-
-        res.render('profile', {
-            title: `${userProfile.username}'s Profile`,
-            user: userProfile,
-            isCurrentUser: req.user._id.toString() === userId,
-            otherUsers,  // Pass the suggested users for the other user
-            messages: req.flash()
-        });
-    } catch (err) {
-        console.error('Error fetching user profile:', err);
-        req.flash('error', 'Error loading profile.');
-        res.redirect('/profile');
-    }
-});
-
 
 module.exports = router;

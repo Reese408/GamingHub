@@ -28,11 +28,13 @@ const userSchema = new mongoose.Schema({
           default: Date.now
         }
       }],
-      equippedItems: {
+    equippedItems: {
         background: { type: String, default: '' },
         badge: { type: String, default: '' },
         frame: { type: String, default: '' }
-      }
+    },
+    wins: { type: Number, default: 0 },  // Win record
+    losses: { type: Number, default: 0 } // Loss record
 });
 
 // Hash password before saving the user

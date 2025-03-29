@@ -1,0 +1,39 @@
+<!-- leaderboard.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard</title>
+    <link rel="stylesheet" href="/css/leaderboard.css">
+</head>
+<body>
+    <%- include('partials/nav') %>
+    <div class="container">
+        <h1>Leaderboard</h1>
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>User</th>
+                    <th>Wins</th>
+                    <th>Losses</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% users.forEach((user, index) => { %>
+                    <tr>
+                        <td><%= index + 1 %></td>
+                        <td>
+                            <img src="<%= user.profilePicture || '/images/default-profile.png' %>" alt="<%= user.username %>'s profile picture" class="profile-img">
+                            <%= user.username %>
+                        </td>
+                        <td><%= user.wins %></td>
+                        <td><%= user.losses %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

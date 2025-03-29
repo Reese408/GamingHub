@@ -113,6 +113,20 @@ app.get('/rps', gameController.renderRps);
 app.get('/clicker', gameController.renderClicker);
 app.get('/chess', gameController.renderChess);
 
+// Leaderboard Route
+app.get('/leaderboard', async (req, res) => {
+  try {
+    const users = await User.find()
+      .sort({ wins: -1 })  // Sort by wins in descending order
+      .select('username wins losses profilePicture')
+      .limit(10);  // Top 10 players
+    res.render('leaderboard', { users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error fetching leaderboard');
+  }
+});
+
 // Main route
 app.get('/', (req, res) => {
   res.render('homepage', { title: 'Home' });
