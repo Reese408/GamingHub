@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     player2ChoiceDiv: document.getElementById('player2Choice'),
   };
 
+  // Show screen helper function
+  function showScreen(screen) {
+    elements.initialScreen.style.display = 'none';
+    elements.gamePlayScreen.style.display = 'block';
+    elements.waitingArea.style.display = screen === 'waiting' ? 'block' : 'none';
+    elements.gameArea.style.display = screen === 'game' ? 'flex' : 'none';
+  }
+
   // Game functions
   window.createGame = () => {
     if (gameActive) return;
@@ -71,20 +79,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('gameResult', (data) => {
     displayResult(data.winner);
-    // Removed the automatic reset timeout
   });
 
   socket.on('resetForNewRound', () => {
     resetChoices();
     if (isPlayer1) {
-      // Player 1 can choose immediately
       elements.player1ChoiceDiv.innerHTML = `
-      <button class="rps-btn rock" onclick="sendChoice('Rock')"></button>
-      <button class="rps-btn paper" onclick="sendChoice('Paper')"></button>
-      <button class="rps-btn scissor" onclick="sendChoice('Scissor')"></button>
-    `;
+        <button class="rps-btn rock" onclick="sendChoice('Rock')"></button>
+        <button class="rps-btn paper" onclick="sendChoice('Paper')"></button>
+        <button class="rps-btn scissor" onclick="sendChoice('Scissor')"></button>
+      `;
     } else {
-      // Player 2 waits for Player 1 to choose first
       elements.player1ChoiceDiv.innerHTML = '<p>Waiting for opponent...</p>';
     }
     elements.player2ChoiceDiv.innerHTML = '<p>Waiting for opponent...</p>';
@@ -96,19 +101,21 @@ document.addEventListener('DOMContentLoaded', () => {
     resetGame();
   });
 
-  // UI functions
-  function showScreen(screen) {
-    elements.initialScreen.style.display = 'none';
-    elements.gamePlayScreen.style.display = 'block';
-    elements.waitingArea.style.display = screen === 'waiting' ? 'block' : 'none';
-    elements.gameArea.style.display = screen === 'game' ? 'flex' : 'none';
-  }
+  socket.on('enableChoice', () => {
+    if (!isPlayer1) {
+      elements.player1ChoiceDiv.innerHTML = `
+        <button class="rps-btn rock" onclick="sendChoice('Rock')"></button>
+        <button class="rps-btn paper" onclick="sendChoice('Paper')"></button>
+        <button class="rps-btn scissor" onclick="sendChoice('Scissor')"></button>
+      `;
+    }
+  });
 
+  // UI functions
   function displayPlayerChoice(choice) {
     elements.player1ChoiceDiv.innerHTML = `
       <button class="rps-btn ${choice.toLowerCase()}" disabled></button>
     `;
-    // Disable all buttons to prevent changing choice
     document.querySelectorAll('.rps-btn').forEach((btn) => {
       btn.disabled = true;
     });
@@ -163,17 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.emit('playAgain', { roomUniqueId });
   };
 
-  // Add this new handler
-  socket.on('enableChoice', () => {
-    if (!isPlayer1) {
-      elements.player1ChoiceDiv.innerHTML = `
-      <button class="rps-btn rock" onclick="sendChoice('Rock')"></button>
-      <button class="rps-btn paper" onclick="sendChoice('Paper')"></button>
-      <button class="rps-btn scissor" onclick="sendChoice('Scissor')"></button>
-    `;
-    }
-  });
-
   window.returnToMenu = () => {
     socket.emit('leaveGame', { roomUniqueId });
     resetGame();
@@ -186,6 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch((err) => console.error('Copy failed:', err));
   };
 
-  // Initialize
+  // Initialize UI
   elements.gamePlayScreen.style.display = 'none';
+  elements.waitingArea.style.display = 'none';
+  elements.gameArea.style.display = 'none';
 });

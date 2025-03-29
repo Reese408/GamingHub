@@ -1,0 +1,42 @@
+GamingHub-1/
+├── config/
+│   ├── auth.js
+│   └── passport.js
+├── controllers/
+│   ├── authController.js
+│   ├── gameController.js
+│   ├── gameStateController.js       
+│   └── storeController.js
+├── models/
+│   ├── gameStateModel.js           
+│   ├── userModel.js
+│   ├── clickerModel.js
+│   └── storeModel.js
+├── public/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   ├── clicker.js              
+│   │   └── main.js
+│   ├── images/
+│   └── uploads/
+├── routes/
+│   ├── authRoutes.js
+│   ├── gameStateRoutes.js          
+│   ├── clickerRoutes.js
+│   ├── profileRoutes.js
+│   └── storeRoutes.js
+├── views/
+│   ├── partials/
+│   │   └── nav.ejs
+│   ├── clicker.ejs                 
+│   ├── homepage.ejs
+│   ├── profile.ejs
+│   ├── store.ejs
+│   ├── 404.ejs
+│   └── 500.ejs
+├── .env
+├── .gitignore
+├── app.js                          # UPDATED - Now includes game state routes
+├── package.json
+└── README.md
