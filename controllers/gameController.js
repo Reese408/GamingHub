@@ -136,24 +136,41 @@ module.exports = (io) => {
     // Helper function to update stats
     async function updateStats(room, winner) {
       try {
+        console.log(`[DEBUG] Starting stats update for room ${Object.keys(room)[0]}, winner: ${winner}`);
+
         const p1Socket = io.sockets.sockets.get(room.p1.socketId);
         const p2Socket = io.sockets.sockets.get(room.p2.socketId);
 
-        if (p1Socket?.request?.user && p2Socket?.request?.user) {
+        console.log(`[DEBUG] Socket objects - p1: ${!!p1Socket}, p2: ${!!p2Socket}`);
+        console.log(`[DEBUG] Session data - p1: ${p1Socket?.request?.session?.passport?.user}, p2: ${p2Socket?.request?.session?.passport?.user}`);
+
+        if (p1Socket?.request?.session?.passport?.user && p2Socket?.request?.session?.passport?.user) {
+          const p1UserId = p1Socket.request.session.passport.user;
+          const p2UserId = p2Socket.request.session.passport.user;
+
+          console.log(`[DEBUG] User IDs - p1: ${p1UserId}, p2: ${p2UserId}`);
+
           const update = { $set: { 'rpsStats.lastPlayed': new Date() } };
 
           if (winner === 'draw') {
-            await User.updateMany({ _id: { $in: [p1Socket.request.user._id, p2Socket.request.user._id] } }, { $inc: { 'rpsStats.draws': 1 }, ...update });
+            console.log('[DEBUG] Updating stats for a draw');
+            await User.updateMany({ _id: { $in: [p1UserId, p2UserId] } }, { $inc: { 'rpsStats.draws': 1 }, ...update });
           } else if (winner === 'p1') {
-            await User.findByIdAndUpdate(p1Socket.request.user._id, { $inc: { 'rpsStats.wins': 1 }, ...update });
-            await User.findByIdAndUpdate(p2Socket.request.user._id, { $inc: { 'rpsStats.losses': 1 }, ...update });
+            console.log('[DEBUG] Updating stats - p1 wins');
+            await User.findByIdAndUpdate(p1UserId, { $inc: { 'rpsStats.wins': 1 }, ...update });
+            await User.findByIdAndUpdate(p2UserId, { $inc: { 'rpsStats.losses': 1 }, ...update });
           } else {
-            await User.findByIdAndUpdate(p2Socket.request.user._id, { $inc: { 'rpsStats.wins': 1 }, ...update });
-            await User.findByIdAndUpdate(p1Socket.request.user._id, { $inc: { 'rpsStats.losses': 1 }, ...update });
+            console.log('[DEBUG] Updating stats - p2 wins');
+            await User.findByIdAndUpdate(p2UserId, { $inc: { 'rpsStats.wins': 1 }, ...update });
+            await User.findByIdAndUpdate(p1UserId, { $inc: { 'rpsStats.losses': 1 }, ...update });
           }
+
+          console.log('[DEBUG] Stats update completed successfully');
+        } else {
+          console.log('[DEBUG] Skipping stats update - missing user session data');
         }
       } catch (err) {
-        console.error('Stats update error:', err);
+        console.error('[ERROR] Stats update failed:', err);
       }
     }
   });
