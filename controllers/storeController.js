@@ -9,7 +9,12 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadPath = 'public/uploads/';
         // Ensure directory exists
-        fs.mkdirSync(uploadPath, { recursive: true });
+        try {
+            fs.mkdirSync(uploadPath, { recursive: true });
+        } catch (err) {
+            console.error('Error creating upload directory:', err);
+            return cb(err);
+        }
         cb(null, uploadPath);
     },
     filename: (req, file, cb) => {
@@ -27,7 +32,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
@@ -58,10 +63,11 @@ exports.addStoreItem = async (req, res) => {
             return res.redirect('/store');
         }
 
-        if (!name || !category) {
+        // Validate that required fields are present
+        if (!name || !category || !description) {
             console.log('Validation failed - missing fields');
             fs.unlinkSync(req.file.path);
-            req.flash('error', 'Name, price and category are required');
+            req.flash('error', 'Name, price, description, and category are required');
             return res.redirect('/store');
         }
 
@@ -81,7 +87,8 @@ exports.addStoreItem = async (req, res) => {
         res.redirect('/store');
     } catch (err) {
         console.error('Error adding item:', err);
-        
+
+        // Clean up the uploaded file in case of error
         if (req.file) {
             try {
                 fs.unlinkSync(req.file.path);
@@ -94,7 +101,8 @@ exports.addStoreItem = async (req, res) => {
         res.redirect('/store');
     }
 };
-//buy handler
+
+// Buy handler
 exports.buyItem = async (req, res) => {
     if (!req.isAuthenticated()) {
         req.flash('error', 'You must be logged in to buy items.');
@@ -105,35 +113,59 @@ exports.buyItem = async (req, res) => {
     const userId = req.user._id;
 
     try {
+        // Fetch the item
         const item = await StoreItem.findById(itemId);
         if (!item) {
             req.flash('error', 'Item not found.');
+            console.log('Item not found:', itemId);
             return res.redirect('/store');
         }
 
-        const user = await User.findById(userId);
+        // Check if item is available
+        if (!item.available) {
+            req.flash('error', 'Item is no longer available.');
+            return res.redirect('/store');
+        }
 
+        // Fetch the user
+        const user = await User.findById(userId);
+        console.log('User:', user);
+        console.log('User Points:', user.points);
+        console.log('Item Price:', item.price);
+
+        // Check if the user has enough points
         if (user.points < item.price) {
             req.flash('error', `You need ${item.price} points to buy this item. You only have ${user.points} points.`);
+            console.log('Not enough points:', user.points, item.price);
             return res.redirect('/store');
         }
 
         // Deduct points
         user.points -= item.price;
 
+        // Initialize fields if they don't exist
+        user.equippedItems = user.equippedItems || { background: '', badge: '', frame: '' };
+        user.backgrounds = user.backgrounds || [];
+
+        // Update inventory or equipped items based on item category
         if (item.category === 'profile') {
-            // This is a background item, equip it instead of adding to the inventory
-            user.equippedItems = user.equippedItems || {};
-            user.equippedItems.background = item.imageUrl;
+            if (item.name.includes('Background')) {
+                user.backgrounds.push(item.imageUrl);  // Add background to the array
+            } else {
+                user.equippedItems.background = item.imageUrl;  // Replace background if not in array
+            }
         } else {
-            // This is a regular item, add it to the inventory
-            user.items.push(itemId);
+            user.items = user.items || [];  // Ensure user has an items array if it doesn't exist
+            user.items.push(itemId);  // Add item to inventory
         }
 
+        // Save user
         await user.save();
+        console.log('User inventory updated:', user.items);
 
-        // Mark item as unavailable (optional)
+        // Mark the item as unavailable in the store
         await StoreItem.findByIdAndUpdate(itemId, { available: false });
+        console.log('Item marked as unavailable:', itemId);
 
         req.flash('success', `Item purchased successfully! ${item.price} points deducted.`);
         res.redirect('/profile');
@@ -143,7 +175,6 @@ exports.buyItem = async (req, res) => {
         res.redirect('/store');
     }
 };
-
 
 // Handle selling an item back to the store
 exports.sellItem = async (req, res) => {

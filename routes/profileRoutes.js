@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const StoreItem = require('../models/storeModel');
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
@@ -41,11 +42,15 @@ router.get('/profile', async (req, res) => {
             _id: { $nin: user.friends.map(f => f._id) }
         }).select('username profilePicture');
 
+        // Get the current user's equipped background
+        const backgroundImage = user.equippedItems.background;
+
         res.render('profile', {
             title: 'Profile',
             user,
             otherUsers,
             currentUserId: req.user._id.toString(),
+            backgroundImage,  // Pass background image to the view
             messages: req.flash()
         });
     } catch (err) {
@@ -249,27 +254,131 @@ router.post('/sell-item', async (req, res) => {
 
     try {
         const { itemId } = req.body;
-        const item = await StoreItem.findById(itemId);
-        const user = await User.findById(req.user._id);
+        if (!itemId) {
+            req.flash('error', 'Invalid item.');
+            return res.redirect('/profile');
+        }
 
-        if (!user.items.includes(itemId)) {
+        // Fetch the item from the Store Items collection
+        const item = await StoreItem.findById(itemId);
+        if (!item) {
+            req.flash('error', 'Item not found.');
+            return res.redirect('/profile');
+        }
+
+        // Fetch the user from the Users collection
+        const user = await User.findById(req.user._id);
+        const itemIdObj = new mongoose.Types.ObjectId(itemId);
+
+        // Check if the user owns the item
+        if (!user.items.some(id => id.equals(itemIdObj))) {
             req.flash('error', 'You do not own this item.');
             return res.redirect('/profile');
         }
 
+        // Calculate refund amount (80% of the item's price)
         const refundAmount = Math.floor(item.price * 0.8);
+
+        // Update the user's inventory and points
         await User.findByIdAndUpdate(req.user._id, {
-            $pull: { items: itemId },
+            $pull: { items: itemIdObj },
             $inc: { points: refundAmount }
         });
 
+        // Mark the item as available again
         await StoreItem.findByIdAndUpdate(itemId, { available: true });
+
         req.flash('success', `Sold ${item.name} for ${refundAmount} points!`);
     } catch (err) {
         console.error('Error selling item:', err);
         req.flash('error', 'Failed to sell item.');
     }
+
     res.redirect('/profile');
 });
+router.post('/equip-background', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        req.flash('error', 'You must be logged in.');
+        return res.redirect('/login');
+    }
+
+    try {
+        const { backgroundUrl } = req.body; // Get background URL
+
+        console.log("Received background URL:", backgroundUrl); // Debugging log
+
+        if (!backgroundUrl) {
+            req.flash('error', 'Invalid background selection.');
+            return res.redirect('/profile');
+        }
+
+        const user = await User.findById(req.user._id);
+
+        // Ensure the user owns the background
+        console.log("User owned backgrounds:", user.backgrounds); // Debugging log
+
+        if (!user.backgrounds.includes(backgroundUrl)) {
+            req.flash('error', 'You do not own this background.');
+            return res.redirect('/profile');
+        }
+
+        // Update the equipped background
+        await User.findByIdAndUpdate(req.user._id, { 
+            'equippedItems.background': backgroundUrl 
+        });
+
+        console.log("Background updated successfully!"); // Debugging log
+
+        req.flash('success', 'Background equipped successfully!');
+    } catch (err) {
+        console.error('Error equipping background:', err);
+        req.flash('error', 'Failed to equip background.');
+    }
+    res.redirect('/profile');
+});
+
+
+router.post('/update-background', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        req.flash('error', 'You must be logged in.');
+        return res.redirect('/login');
+    }
+
+    try {
+        const { backgroundId } = req.body; // Get the selected backgroundId from the form
+
+        if (!mongoose.Types.ObjectId.isValid(backgroundId)) {
+            req.flash('error', 'Invalid background ID.');
+            return res.redirect('/profile');
+        }
+
+        const user = await User.findById(req.user._id);
+
+        // Ensure the user owns the background
+        const ownedBackground = user.profileItems.find(item => 
+            item.itemId.toString() === backgroundId
+        );
+
+        if (!ownedBackground) {
+            req.flash('error', 'You do not own this background.');
+            return res.redirect('/profile');
+        }
+
+        // Update the equipped background
+        await User.findByIdAndUpdate(req.user._id, { 
+            'equippedItems.background': backgroundId 
+        });
+
+        req.flash('success', 'Background updated successfully!');
+    } catch (err) {
+        console.error('Error updating background:', err);
+        req.flash('error', 'Failed to update background.');
+    }
+
+    res.redirect('/profile');
+});
+
+
+
 
 module.exports = router;

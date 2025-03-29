@@ -20,10 +20,6 @@ body {
     top: 0;
     left: 0;
     z-index: -1;
-    background-image: url('<%= backgroundImage %>');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
 }
 
 .container {
@@ -338,4 +334,45 @@ friend-card:hover,
     .users-grid {
         grid-template-columns: 1fr;
     }
+}
+body{
+    background-image: url('<%= backgroundImage %>');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+.background-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.background-option {
+    width: 100px;
+    height: 100px;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid transparent;
+    position: relative;
+    cursor: pointer;
+    transition: border 0.3s ease;
+}
+
+.background-option.selected {
+    border: 2px solid #4CAF50; /* Green border for selected background */
+}
+
+.background-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3); /* Dim effect on hover */
+    transition: opacity 0.3s ease;
+}
+
+.background-option:hover .background-overlay {
+    opacity: 0;
 }

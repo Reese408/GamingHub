@@ -6,15 +6,56 @@
     <title><%= title %></title>
     <link rel="stylesheet" href="/css/profile.css">
     <script src="https://cdn.jsdelivr.net/npm/tsparticles@latest"></script>
+    <style>
+        body {
+            background-image: url('<%= backgroundImage %>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        
+        .background-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .background-option {
+            width: 100px;
+            height: 100px;
+            background-size: cover;
+            background-position: center;
+            border: 2px solid transparent;
+            position: relative;
+            cursor: pointer;
+            transition: border 0.3s ease;
+        }
+
+        .background-option.selected {
+            border: 2px solid #4CAF50; /* Green border for selected background */
+        }
+
+        .background-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3); /* Dim effect on hover */
+            transition: opacity 0.3s ease;
+        }
+
+        .background-option:hover .background-overlay {
+            opacity: 0;
+        }
+    </style>
 </head>
 <body>
-    <!-- Vanta Background Effect -->
     <div id="profile-page"></div>
 
     <%- include('partials/nav') %>
 
     <div class="container">
-        <!-- Profile Header with Equipped Items -->
         <div class="profile-header">
             <% if (user.equippedItems && user.equippedItems.frame) { %>
                 <div class="profile-frame">
@@ -37,30 +78,25 @@
             <p><strong>Losses:</strong> <%= user.losses %></p>
         </div>
 
-        <!-- Profile Content -->
         <div class="profile-content">
-            <!-- Left Side: User Info -->
             <div class="profile-info">
                 <h2>About Me</h2>
                 <p>Email: <%= user.email %></p>
                 <p class="bio"><%= user.bio || 'No bio yet.' %></p>
-
-                <!-- Update Bio Form -->
+                
                 <form action="/update-bio" method="POST">
                     <label for="bio">Update Bio:</label>
                     <textarea id="bio" name="bio" rows="4" placeholder="Tell us about yourself..."><%= user.bio || '' %></textarea>
                     <button type="submit">Update Bio</button>
                 </form>
-
-                <!-- Upload Profile Picture Form -->
+                
                 <form action="/upload-profile-picture" method="POST" enctype="multipart/form-data">
                     <label for="profilePicture">Update Profile Picture:</label>
                     <input type="file" id="profilePicture" name="profilePicture" accept="image/*" required>
                     <button type="submit">Upload Picture</button>
                 </form>
             </div>
-
-            <!-- Right Side: My Items -->
+            
             <div class="profile-items">
                 <h2>My Items</h2>
                 <% if (user.items && user.items.length > 0) { %>
@@ -71,7 +107,6 @@
                                 <h3><%= item.name %></h3>
                                 <p><%= item.description %></p>
                                 <p class="price">Price: <%= item.price %> points</p>
-                                <!-- Sell Item Form -->
                                 <form action="/sell-item" method="POST">
                                     <input type="hidden" name="itemId" value="<%= item._id %>">
                                     <button type="submit" class="sell-button">Sell for <%= Math.floor(item.price * 0.8) %> points (80% refund)</button>
@@ -92,7 +127,6 @@
             </div>
         </div>
 
-        <!-- Profile Showcase Section -->
         <div class="profile-showcase">
             <h2>My Profile Customizations</h2>
             <% if (user.profileItems && user.profileItems.length > 0) { %>
@@ -100,60 +134,78 @@
                     <% user.profileItems.forEach(item => { %>
                         <div class="profile-item">
                             <img src="<%= item.itemId.imageUrl %>" alt="<%= item.itemId.name %>">
-                            <div class="item-info">
-                                <h4><%= item.itemId.name %></h4>
-                                <p><%= item.itemId.description %></p>
-                                <form action="/equip-item" method="POST">
-                                    <input type="hidden" name="itemId" value="<%= item.itemId._id %>">
-                                    <input type="hidden" name="itemType" value="<%= item.itemId.profileDisplay %>">
-                                    <button type="submit">
-                                        <%= item.equipped ? 'Unequip' : 'Equip' %>
-                                    </button>
-                                </form>
-                            </div>
+                            <h4><%= item.itemId.name %></h4>
+                            <p><%= item.itemId.description %></p>
+                            <form action="/equip-item" method="POST">
+                                <input type="hidden" name="itemId" value="<%= item.itemId._id %>">
+                                <input type="hidden" name="itemType" value="<%= item.itemId.profileDisplay %>">
+                                <button type="submit">
+                                    <%= item.equipped ? 'Unequip' : 'Equip' %>
+                                </button>
+                            </form>
                         </div>
                     <% }) %>
                 </div>
             <% } else { %>
                 <p>No profile customizations yet. Visit the store to get some!</p>
             <% } %>
-            </div>
-
-    <!-- Friends Section -->
-    <div class="profile-friends">
-        <div class="friends-section">
-            <h2>Friends</h2>
-            <% if (user.friends && user.friends.length > 0) { %>
-                <div class="friends-grid">
-                    <% user.friends.forEach(friend => { %>
-                        <div class="friend-card">
-                            <a href="/profile/<%= friend._id %>">
-                                <img src="<%= friend.profilePicture || '/images/default-profile.png' %>" alt="<%= friend.username %>'s profile picture">
-                            </a>
-                            <h3><a href="/profile/<%= friend._id %>"><%= friend.username %></a></h3>
-                            <form action="/remove-friend" method="POST">
-                                <input type="hidden" name="friendId" value="<%= friend._id %>">
-                                <button type="submit" class="btn-remove">Remove</button>
-                            </form>
-                        </div>
-                    <% }) %>
-                </div>
-            <% } else { %>
-                <p>You don't have any friends yet.</p>
-            <% } %>
         </div>
 
+        <div class="profile-background-selection">
+            <h2>Select Background</h2>
+            <div class="background-options">
+                <% if (user.backgrounds && user.backgrounds.length > 0) { %>
+                    <% user.backgrounds.forEach(background => { %>
+                        <div class="background-option" 
+                            style="background-image: url('<%= background %>');" 
+                            data-background="<%= background %>" 
+                            <% if (user.equippedItems.background === background) { %> 
+                                class="selected"
+                            <% } %>
+                        >
+                            <span class="background-overlay"></span>
+                        </div>
+                    <% }) %>
+                <% } else { %>
+                    <p>No backgrounds available</p>
+                <% } %>
+            </div>
+            
+
+        <div class="profile-friends">
+            <div class="friends-section">
+                <h2>Friends</h2>
+                <% if (user.friends && user.friends.length > 0) { %>
+                    <div class="friends-grid">
+                        <% user.friends.forEach(friend => { %>
+                            <div class="friend-card">
+                                <a href="/profile/<%= friend._id %>">
+                                    <img src="<%= friend.profilePicture || '/images/default-profile.png' %>" alt="<%= friend.username %>'s profile picture">
+                                </a>
+                                <h3><a href="/profile/<%= friend._id %>"><%= friend.username %></a></h3>
+                                <form action="/remove-friend" method="POST">
+                                    <input type="hidden" name="friendId" value="<%= friend._id %>">
+                                    <button type="submit" class="btn-remove">Remove</button>
+                                </form>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <p>You don't have any friends yet.</p>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Suggested Users Section -->
         <div class="suggested-users">
             <h2>Suggested Friends</h2>
             <% if (otherUsers && otherUsers.length > 0) { %>
                 <div class="users-grid">
                     <% otherUsers.forEach(user => { %>
                         <div class="user-card">
-                            <a href="/profile/<%= user._id %>">
-                                <img src="<%= user.profilePicture || '/images/default-profile.png' %>" 
-                                    alt="<%= user.username %>'s profile picture">
-                            </a>
-                            <h3><a href="/profile/<%= user._id %>"><%= user.username %></a></h3>
+                            <img src="<%= user.profilePicture || '/images/default-profile.png' %>" 
+                                 alt="<%= user.username %>'s profile picture">
+                            <h3><%= user.username %></h3>
                             <form action="/add-friend" method="POST">
                                 <input type="hidden" name="friendId" value="<%= user._id %>">
                                 <button type="submit" class="btn-add">Add Friend</button>
@@ -167,56 +219,57 @@
         </div>
     </div>
 
-        <!-- Flash Messages -->
-        <% if (messages && messages.success) { %>
-            <div class="success-message"><%= messages.success %></div>
-        <% } %>
-        <% if (messages && messages.error) { %>
-            <div class="error-message"><%= messages.error %></div>
-        <% } %>
-    </div>
-
-    <!-- Background Effect Script -->
-    <!-- Background Effect Script -->
-    <% if (user.equippedItems && user.equippedItems.background) { %>
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                const backgroundType = "<%= user.equippedItems.background %>";
-
-                // If background is an image URL
-                if (backgroundType.startsWith('http')) {
-                    document.body.style.backgroundImage = `url('${backgroundType}')`;
-                    document.body.style.backgroundSize = 'cover';
-                    document.body.style.backgroundPosition = 'center';
-                    document.body.style.backgroundAttachment = 'fixed';
-                }
-                // If background is 'waves' effect
-                else if (backgroundType === 'waves') {
-                    VANTA.WAVES({
-                        el: "#profile-page",
-                        color: 0x3b82f6,
-                        waveHeight: 20,
-                        waveSpeed: 1.5,
-                        zoom: 0.85
-                    });
-                }
-                // If background is a relative path (stored image)
-                else if (backgroundType) {
-                    let imageUrl = backgroundType;
-                    if (!imageUrl.startsWith('/uploads/')) {
-                        imageUrl = `/uploads/${imageUrl}`;
-                    }
-                    document.body.style.backgroundImage = `url('${imageUrl}')`;
-                    document.body.style.backgroundSize = 'cover';
-                    document.body.style.backgroundPosition = 'center';
-                    document.body.style.backgroundAttachment = 'fixed';
-                }
-                else {
-                    document.body.style.backgroundColor = '#f0f0f0';
-                }
-            });
-        </script>
-    <% } %>
+    <script>
+        // Define the applyBackground function
+        function applyBackground(bg) {
+            // Reset any active effects
+            if (window.vantaEffect) {
+                window.vantaEffect.destroy();
+            }
+    
+            if (bg.startsWith('http')) {
+                document.body.style.backgroundImage = `url('${bg}')`;
+            } else if (bg === 'waves') {
+                window.vantaEffect = VANTA.WAVES({
+                    el: "#profile-page",
+                    color: 0x3b82f6,
+                    waveHeight: 20,
+                    waveSpeed: 1.5,
+                    zoom: 0.85
+                });
+            } else if (bg) {
+                let imageUrl = bg.startsWith('/uploads/') ? bg : `/uploads/${bg}`;
+                document.body.style.backgroundImage = `url('${imageUrl}')`;
+            } else {
+                document.body.style.backgroundColor = '#f0f0f0';
+            }
+    
+            document.body.style.backgroundSize = 'cover';
+            document.body.style.backgroundPosition = 'center';
+            document.body.style.backgroundAttachment = 'fixed';
+        }
+    
+        // Event listener for the background selection
+        document.addEventListener("DOMContentLoaded", function () {
+            const backgroundOptions = document.querySelectorAll('.background-option');
             
+            backgroundOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const background = this.getAttribute('data-background');
+                    
+                    // Apply the background effect
+                    applyBackground(background);
+                    
+                    // Update the border highlight
+                    backgroundOptions.forEach(option => option.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    // Optionally, update backend with selected background
+                    // This can be done via a form or AJAX depending on your needs
+                });
+            });
+        });
+    </script>
+    
 </body>
 </html>
