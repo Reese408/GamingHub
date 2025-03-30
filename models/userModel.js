@@ -2,67 +2,195 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  bio: { type: String, default: '' }, // Bio field
-  profilePicture: { type: String, default: '/images/default.png' }, // Default profile picture
-  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Array of friends
-  points: { type: Number, default: 0 }, // Points for the user
-  items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'StoreItem' }], // Items the user has
-  isAdmin: { type: Boolean, default: false }, // Admin flag
-  // Rock Paper Scissors Game Stats
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/.+\@.+\..+/, 'Please fill a valid email address']
+  },
+  username: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30
+  },
+  password: { 
+    type: String, 
+    required: true,
+    minlength: 8
+  },
+  bio: { 
+    type: String, 
+    default: '',
+    maxlength: 500 
+  },
+  profilePicture: { 
+    type: String, 
+    default: '/images/default.png' 
+  },
+  friends: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  }],
+  points: { 
+    type: Number, 
+    default: 0,
+    min: 0 
+  },
+  items: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'StoreItem' 
+  }],
+  isAdmin: { 
+    type: Boolean, 
+    default: false 
+  },
   rpsStats: {
     wins: { type: Number, default: 0 },
     losses: { type: Number, default: 0 },
     draws: { type: Number, default: 0 },
-    lastPlayed: { type: Date },
+    lastPlayed: { type: Date }
   },
-  profileItems: [{ // Array of items the user has bought, including backgrounds
-    itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'StoreItem' },
-    equipped: { type: Boolean, default: false },
-    obtainedAt: { type: Date, default: Date.now },
+  // Backgrounds stored as direct URLs
+  backgrounds: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(arr) {
+        return arr.every(url => typeof url === 'string' && url.startsWith('/uploads/'));
+      },
+      message: 'Backgrounds must be valid upload paths'
+    }
+  },
+  // Purchased items including backgrounds
+  profileItems: [{
+    itemId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'StoreItem',
+      required: true 
+    },
+    equipped: { 
+      type: Boolean, 
+      default: false 
+    },
+    obtainedAt: { 
+      type: Date, 
+      default: Date.now 
+    }
   }],
-  equippedItems: { // Reference to the item the user currently has equipped
-    background: { type: String, default: '' }, // Background image URL
-    badge: { type: String, default: '' }, // Badge the user has equipped
-    frame: { type: String, default: '' }, // Frame the user has equipped
+  // Currently equipped items
+  equippedItems: {
+    background: { 
+      type: String, 
+      default: '',
+      validate: {
+        validator: function(v) {
+          return v === '' || v.startsWith('/uploads/');
+        },
+        message: 'Background must be a valid upload path'
+      }
+    },
+    badge: { 
+      type: String, 
+      default: '' 
+    },
+    frame: { 
+      type: String, 
+      default: '' 
+    }
   },
-  wins: { type: Number, default: 0 }, // User's win count
-  losses: { type: Number, default: 0 }, // User's loss count
-  // Timestamps
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
+  wins: { 
+    type: Number, 
+    default: 0 
+  },
+  losses: { 
+    type: Number, 
+    default: 0 
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  updatedAt: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Hash password before saving the user
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
+// Virtual for all available backgrounds (combines both sources)
+userSchema.virtual('allBackgrounds').get(function() {
+  const itemBackgrounds = this.profileItems
+    .filter(item => item.itemId?.profileDisplay === 'background')
+    .map(item => item.itemId.imageUrl);
+  
+  return [...new Set([...this.backgrounds, ...itemBackgrounds])];
 });
 
-// Update the updatedAt field before saving
-userSchema.pre('save', function (next) {
-  this.updatedAt = Date.now();
-  next();
+// Virtual for win/loss ratio
+userSchema.virtual('winRatio').get(function() {
+  if (this.losses === 0) return this.wins;
+  return (this.wins / this.losses).toFixed(2);
 });
 
-// Method to compare passwords during login
-userSchema.methods.comparePassword = async function (password) {
-  return await bcrypt.compare(password, this.password);
-};
-
-// Virtual property for win/loss ratio
-userSchema.virtual('rpsWinRatio').get(function () {
+// Virtual for RPS win ratio
+userSchema.virtual('rpsWinRatio').get(function() {
   if (this.rpsStats.losses === 0) return this.rpsStats.wins;
   return (this.rpsStats.wins / this.rpsStats.losses).toFixed(2);
 });
 
-// Virtual property for total games played
-userSchema.virtual('rpsTotalGames').get(function () {
+// Virtual for total RPS games played
+userSchema.virtual('rpsTotalGames').get(function() {
   return this.rpsStats.wins + this.rpsStats.losses + this.rpsStats.draws;
 });
 
+// Password hashing middleware
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Update timestamp middleware
+userSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+// Password comparison method
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Method to add a background
+userSchema.methods.addBackground = function(backgroundUrl) {
+  if (!this.backgrounds.includes(backgroundUrl)) {
+    this.backgrounds.push(backgroundUrl);
+  }
+  return this.save();
+};
+
+// Method to equip a background
+userSchema.methods.equipBackground = function(backgroundUrl) {
+  if (this.allBackgrounds.includes(backgroundUrl)) {
+    this.equippedItems.background = backgroundUrl;
+    return this.save();
+  }
+  throw new Error('User does not own this background');
+};
+
 const User = mongoose.model('User', userSchema);
+
 module.exports = User;

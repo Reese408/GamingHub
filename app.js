@@ -87,7 +87,7 @@ const gameHandlers = initSockets(io);
 // Routes
 app.use('/', require('./routes/authRoutes'));
 app.use('/store', require('./routes/storeRoutes'));
-app.use('/profile', require('./routes/profileRoutes'));
+app.use('/', require('./routes/profileRoutes'));
 app.use('/game-state', require('./routes/gameStateRoutes'));
 app.use('/leaderboard', require('./routes/leaderboardRoute'));
 app.use('/clicker', require('./routes/clickerRoutes'));
