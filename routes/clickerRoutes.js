@@ -2,6 +2,18 @@ const express = require('express');
 const router = express.Router();
 const GameState = require('../models/clickerModel');
 
+// ✅ New route to render the clicker game page
+router.get('/', async (req, res) => {
+  try {
+      const gameState = await GameState.findOne({ userId: req.user?._id }); // Avoid crashing if user is null
+      const funds = gameState ? gameState.currentScore : 0;  // Default to 0 if no gameState
+
+      res.render('clicker', { title: 'Clicker Game', user: req.user || null, funds });
+  } catch (err) {
+      console.error("Error fetching clicker game state:", err);
+      res.status(500).render('error', { title: 'Error', message: 'Failed to load the clicker game.' });
+  }
+});
 // Fetch game state
 router.get('/game-state', async (req, res) => {
   try {
