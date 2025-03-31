@@ -1,172 +1,209 @@
-var canvas;
-var ctx;
+// Select elements
+const gameBoard = document.querySelector("#gameBoard");
+const ctx = gameBoard.getContext("2d");
+const scoreText = document.querySelector("#scoreText");
+const resetBtn = document.querySelector("#resetBtn");
+const pointsNotification = document.querySelector("#points-notification");
+const newPointsTotal = document.querySelector("#new-points-total");
 
-var head;
-var apple;
-var ball;
+// Game settings
+const gameWidth = gameBoard.width;
+const gameHeight = gameBoard.height;
+const snakeColor = "lightgreen";
+const snakeBorder = "darkgreen";
+const foodColor = "red";
+const unitSize = 25;
+const gameSpeed = 75; // ms between updates (lower = faster)
 
-var dots;
-var apple_x;
-var apple_y;
+// Game variables
+let running = false;
+let xVelocity = unitSize;
+let yVelocity = 0;
+let foodX;
+let foodY;
+let score = 0;
+let snake = [
+    { x: unitSize * 4, y: 0 },
+    { x: unitSize * 3, y: 0 },
+    { x: unitSize * 2, y: 0 },
+    { x: unitSize, y: 0 },
+    { x: 0, y: 0 }
+];
 
-var leftDirection = false;
-var rightDirection = true;
-var upDirection = false;
-var downDirection = false;
-var inGame = true;
+// Event listeners
+window.addEventListener("keydown", changeDirection);
+resetBtn.addEventListener("click", resetGame);
 
-const DOT_SIZE = 10;
-const ALL_DOTS = 900;
-const MAX_RAND = 29;
-const DELAY = 140;
-const C_HEIGHT = 300;
-const C_WIDTH = 300;
+// Start the game
+gameStart();
 
-const LEFT_KEY = 37;
-const RIGHT_KEY = 39;
-const UP_KEY = 38;
-const DOWN_KEY = 40;
-
-var x = new Array(ALL_DOTS);
-var y = new Array(ALL_DOTS);
-
-function init() {
-    canvas = document.getElementById('snakeGame');
-    ctx = canvas.getContext('2d');
-
-    loadImages();
-    createSnake();
-    locateApple();
-    setTimeout(gameCycle, DELAY);
+function gameStart() {
+    running = true;
+    score = 0;
+    scoreText.textContent = score;
+    resetBtn.style.display = "none";
+    
+    createFood();
+    drawFood();
+    nextTick();
 }
 
-function loadImages() {
-    head = new Image();
-    head.src = 'head.png'; // Replace with your image path or use shapes
-    ball = new Image();
-    ball.src = 'dot.png'; // Replace with your image path or use shapes
-    apple = new Image();
-    apple.src = 'apple.png'; // Replace with your image path or use shapes
-}
-
-function createSnake() {
-    dots = 3;
-    for (var z = 0; z < dots; z++) {
-        x[z] = 50 - z * 10;
-        y[z] = 50;
-    }
-}
-
-function checkApple() {
-    if (x[0] == apple_x && y[0] == apple_y) {
-        dots++;
-        locateApple();
-    }
-}
-
-function doDrawing() {
-    ctx.clearRect(0, 0, C_WIDTH, C_HEIGHT);
-
-    if (inGame) {
-        ctx.drawImage(apple, apple_x, apple_y);
-
-        for (var z = 0; z < dots; z++) {
-            if (z == 0) {
-                ctx.drawImage(head, x[z], y[z]);
-            } else {
-                ctx.drawImage(ball, x[z], y[z]);
-            }
+async function updateUserPoints(points) {
+    try {
+        const response = await fetch('/profile/update-snake-points', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ points: points })
+        });
+        
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const data = await response.json();
+        if (data.success && pointsNotification && newPointsTotal) {
+            newPointsTotal.textContent = data.newPoints;
+            pointsNotification.style.display = 'block';
+            setTimeout(() => {
+                pointsNotification.style.display = 'none';
+            }, 3000);
         }
+    } catch (error) {
+        console.error('Error updating points:', error);
+    }
+}
+
+function nextTick() {
+    if (running) {
+        setTimeout(() => {
+            clearBoard();
+            drawFood();
+            moveSnake();
+            drawSnake();
+            checkGameOver();
+            nextTick();
+        }, gameSpeed);
     } else {
-        gameOver();
+        displayGameOver();
     }
 }
 
-function gameOver() {
-    ctx.fillStyle = 'white';
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    ctx.font = 'normal bold 18px serif';
-    ctx.fillText('Game over', C_WIDTH / 2, C_HEIGHT / 2);
+function clearBoard() {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.fillRect(0, 0, gameWidth, gameHeight);
 }
 
-function move() {
-    for (var z = dots; z > 0; z--) {
-        x[z] = x[z - 1];
-        y[z] = y[z - 1];
+function createFood() {
+    function randomFood(min, max) {
+        return Math.floor((Math.random() * (max - min) + min) / unitSize) * unitSize;
     }
-
-    if (leftDirection) {
-        x[0] -= DOT_SIZE;
-    }
-
-    if (rightDirection) {
-        x[0] += DOT_SIZE;
-    }
-
-    if (upDirection) {
-        y[0] -= DOT_SIZE;
-    }
-
-    if (downDirection) {
-        y[0] += DOT_SIZE;
-    }
-}
-
-function checkCollision() {
-    for (var z = dots; z > 0; z--) {
-        if (z > 4 && x[0] == x[z] && y[0] == y[z]) {
-            inGame = false;
+    foodX = randomFood(0, gameWidth - unitSize);
+    foodY = randomFood(0, gameHeight - unitSize);
+    
+    for (let part of snake) {
+        if (part.x === foodX && part.y === foodY) {
+            createFood();
+            return;
         }
     }
+}
 
-    if (y[0] >= C_HEIGHT || y[0] < 0 || x[0] >= C_WIDTH || x[0] < 0) {
-        inGame = false;
+function drawFood() {
+    ctx.fillStyle = foodColor;
+    ctx.fillRect(foodX, foodY, unitSize, unitSize);
+}
+
+function moveSnake() {
+    const head = { x: snake[0].x + xVelocity, y: snake[0].y + yVelocity };
+    snake.unshift(head);
+
+    if (snake[0].x === foodX && snake[0].y === foodY) {
+        score++;
+        scoreText.textContent = score;
+        createFood();
+    } else {
+        snake.pop();
     }
 }
 
-function locateApple() {
-    var r = Math.floor(Math.random() * MAX_RAND);
-    apple_x = r * DOT_SIZE;
+function drawSnake() {
+    ctx.fillStyle = snakeColor;
+    ctx.strokeStyle = snakeBorder;
 
-    r = Math.floor(Math.random() * MAX_RAND);
-    apple_y = r * DOT_SIZE;
+    snake.forEach(part => {
+        ctx.fillRect(part.x, part.y, unitSize, unitSize);
+        ctx.strokeRect(part.x, part.y, unitSize, unitSize);
+    });
 }
 
-function gameCycle() {
-    if (inGame) {
-        checkApple();
-        checkCollision();
-        move();
-        doDrawing();
-        setTimeout(gameCycle, DELAY);
+function changeDirection(event) {
+    const keyPressed = event.keyCode;
+    const LEFT = 37, UP = 38, RIGHT = 39, DOWN = 40;
+
+    const goingUp = yVelocity === -unitSize;
+    const goingDown = yVelocity === unitSize;
+    const goingRight = xVelocity === unitSize;
+    const goingLeft = xVelocity === -unitSize;
+
+    switch (true) {
+        case keyPressed === LEFT && !goingRight:
+            xVelocity = -unitSize;
+            yVelocity = 0;
+            break;
+        case keyPressed === UP && !goingDown:
+            xVelocity = 0;
+            yVelocity = -unitSize;
+            break;
+        case keyPressed === RIGHT && !goingLeft:
+            xVelocity = unitSize;
+            yVelocity = 0;
+            break;
+        case keyPressed === DOWN && !goingUp:
+            xVelocity = 0;
+            yVelocity = unitSize;
+            break;
     }
 }
 
-onkeydown = function(e) {
-    var key = e.keyCode;
-
-    if (key == LEFT_KEY && !rightDirection) {
-        leftDirection = true;
-        upDirection = false;
-        downDirection = false;
+function checkGameOver() {
+    if (snake[0].x < 0 || snake[0].x >= gameWidth || snake[0].y < 0 || snake[0].y >= gameHeight) {
+        running = false;
     }
 
-    if (key == RIGHT_KEY && !leftDirection) {
-        rightDirection = true;
-        upDirection = false;
-        downDirection = false;
+    for (let i = 1; i < snake.length; i++) {
+        if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
+            running = false;
+        }
     }
+}
 
-    if (key == UP_KEY && !downDirection) {
-        upDirection = true;
-        rightDirection = false;
-        leftDirection = false;
+function displayGameOver() {
+    ctx.font = "50px MV Boli";
+    ctx.fillStyle = "black";
+    ctx.textAlign = "center";
+    ctx.fillText("Game Over!", gameWidth / 2, gameHeight / 2);
+    
+    resetBtn.style.display = "block";
+    resetBtn.textContent = "Play Again?";
+    resetBtn.style.backgroundColor = "lightgreen";
+    resetBtn.style.color = "darkgreen";
+    
+    if (score > 0) {
+        updateUserPoints(score);
     }
+}
 
-    if (key == DOWN_KEY && !upDirection) {
-        downDirection = true;
-        rightDirection = false;
-        leftDirection = false;
-    }
-};
+function resetGame() {
+    score = 0;
+    xVelocity = unitSize;
+    yVelocity = 0;
+    snake = [
+        { x: unitSize * 4, y: 0 },
+        { x: unitSize * 3, y: 0 },
+        { x: unitSize * 2, y: 0 },
+        { x: unitSize, y: 0 },
+        { x: 0, y: 0 }
+    ];
+    gameStart();
+}

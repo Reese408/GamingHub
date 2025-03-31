@@ -1,3 +1,4 @@
+const User = require('../models/userModel');
 // HTTP Route Handlers
 exports.renderRps = (req, res) => {
   try {
@@ -41,14 +42,26 @@ exports.renderChess = (req, res) => {
   }
 };
 
-exports.renderSnake = (req, res) => {
-  try{
+exports.renderSnake = async (req, res) => {
+  try {
+    if (!req.isAuthenticated()) {
+      req.flash('error', 'You must be logged in to play the game.');
+      return res.redirect('/login');
+    }
+
+    // Fetch user with populated data
+    const user = await User.findById(req.user._id)
+      .populate('profileItems.itemId');
+
+    const backgroundImage = user.equippedItems?.background || '';
+
     res.render('snake', { 
       title: 'Snake Game',
       user: req.user || null,
+      backgroundImage, // Pass the background to the view
       messages: req.flash()
     });
-  } catch(err){
+  } catch(err) {
     console.error('Snake render error:', err);
     req.flash('error', 'Failed to load Snake game');
     res.redirect('/');

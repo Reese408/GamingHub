@@ -329,5 +329,63 @@ router.post(['/update-background', '/profile/update-background'], handleProfileR
     req.flash('success', 'Background updated successfully!');
     res.redirect('/profile');
 }));
+router.get('/game', handleProfileRoute(async (req, res) => {
+    if (!req.isAuthenticated()) {
+        req.flash('error', 'You must be logged in to play the game.');
+        return res.redirect('/login');
+    }
 
+    const user = await User.findById(req.user._id)
+        .populate('friends', 'username profilePicture')
+        .populate('items')
+        .populate('profileItems.itemId');
+
+    const backgroundImage = user.equippedItems?.background || ''; // Get background
+
+    res.render('snake', {
+        title: 'Snake Game',
+        user,
+        backgroundImage, // Pass to view
+        messages: req.flash()
+    });
+}));
+// Add this with your other routes
+router.post('/update-snake-points', handleProfileRoute(async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'You must be logged in to save points.' 
+        });
+    }
+
+    const { points } = req.body;
+    
+    // Validate points is a positive number
+    if (!points || isNaN(points) || points <= 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid points value.' 
+        });
+    }
+
+    try {
+        // Update user's points in database
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user._id,
+            { $inc: { points: points } }, // Increment points by the score
+            { new: true } // Return the updated document
+        );
+
+        res.json({ 
+            success: true,
+            newPoints: updatedUser.points
+        });
+    } catch (err) {
+        console.error('Error updating points:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error while updating points.' 
+        });
+    }
+}));
 module.exports = router;
