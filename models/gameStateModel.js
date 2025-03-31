@@ -6,7 +6,7 @@ const gameStateSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    unique: true, // Remove index: true and keep only this or the schema.index()
+    unique: true,
   },
 
   // Core game progress
@@ -41,9 +41,6 @@ const gameStateSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },
 });
-
-// Remove either this index call OR the unique: true above
-// gameStateSchema.index({ userId: 1 }, { unique: true });
 
 // Auto-update lastUpdated timestamp on save
 gameStateSchema.pre('save', function (next) {

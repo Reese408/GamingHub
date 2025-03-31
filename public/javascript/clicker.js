@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
   // API Configuration
-  const API_BASE = '/api/game-state';
+  const API_BASE = 'game-state';
 
   // Load saved game state
   async function loadGameState() {

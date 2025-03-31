@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 
 // Configuration
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://Reese:Giantsus-2005@cluster0.9g6dv.mongodb.net/node-prac?retryWrites=true&w=majority&tls=true';
 
 // Trust proxy for production
@@ -45,6 +45,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+
 // Set up session middleware **before** initializing passport
 app.use(sessionMiddleware);
 app.use(flash());
@@ -72,7 +73,7 @@ const io = new Server(server, {
     credentials: true
   }
 });
-
+io.engine.use(sessionMiddleware);
 // Initialize Socket.IO Handlers
 const { initSockets } = require('./controllers/gameController');
 initSockets(io); // Initialize sockets immediately after defining middleware
