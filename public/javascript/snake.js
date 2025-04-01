@@ -13,7 +13,7 @@ const snakeColor = "lightgreen";
 const snakeBorder = "darkgreen";
 const foodColor = "red";
 const unitSize = 25;
-const gameSpeed = 75; // ms between updates (lower = faster)
+const gameSpeed = 90; // ms between updates (lower = faster)
 
 // Game variables
 let running = false;

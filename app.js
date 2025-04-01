@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 
 // Configuration
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 const dbURI = process.env.MONGODB_URI || 'mongodb+srv://Reese:Giantsus-2005@cluster0.9g6dv.mongodb.net/node-prac?retryWrites=true&w=majority&tls=true';
 
 // Trust proxy for production
@@ -67,7 +67,7 @@ const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
       ? process.env.CLIENT_URL 
-      : ['http://localhost:3001', 'http://127.0.0.1:3001'],
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'],
     methods: ['GET', 'POST'],
     credentials: true
   }
