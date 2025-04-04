@@ -16,7 +16,14 @@ const server = http.createServer(app);
 
 // Configuration
 const PORT = process.env.PORT || 3000;
-const dbURI = process.env.MONGODB_URI || 'mongodb+srv://Reese:Giantsus-2005@cluster0.9g6dv.mongodb.net/node-prac?retryWrites=true&w=majority&tls=true';
+
+// **MongoDB URI** should be set as an environment variable
+const dbURI = process.env.MONGODB_URI;
+
+if (!dbURI) {
+  console.error("❌ MONGODB_URI environment variable not set!");
+  process.exit(1);
+}
 
 // Trust proxy for production
 app.set('trust proxy', 1);
@@ -46,7 +53,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 
-// Set up session middleware **before** initializing passport
+// Set up session middleware 
 app.use(sessionMiddleware);
 app.use(flash());
 app.use(passport.initialize());
@@ -63,7 +70,7 @@ app.use((req, res, next) => {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Initialize Socket.IO Setup after session middleware
+// Initialize Socket.IO
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
@@ -76,7 +83,7 @@ const io = new Server(server, {
 io.engine.use(sessionMiddleware);
 // Initialize Socket.IO Handlers
 const { initSockets } = require('./controllers/gameController');
-initSockets(io); // Initialize sockets immediately after defining middleware
+initSockets(io); 
 
 // Database Connection
 mongoose.connect(dbURI)
